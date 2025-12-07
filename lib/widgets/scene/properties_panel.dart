@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dartblock_code/widgets/dartblock_editor.dart' show DartBlockEditor;
 
 import '../../controlers/scene_controler.dart';
 import '../../models/scene/data_model.dart';
@@ -28,11 +29,13 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
     super.initState();
     
     // Initialize with existing script or create new empty program
+    // DartBlockProgram.init takes List<Statement> and List<DartBlockCustomFunction>
     if (widget.node is SceneLeafNode) {
       final leaf = widget.node as SceneLeafNode;
-      _program = leaf.onInteractionScript ?? DartBlockProgram.init([], []);
+      _program = leaf.onInteractionScript ?? 
+          DartBlockProgram.init([], []); // Empty statements and custom functions
     } else {
-      _program = DartBlockProgram.init([], []);
+      _program = DartBlockProgram.init([], []); // Empty statements and custom functions
     }
   }
 
@@ -213,8 +216,23 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
     BuildContext context,
     SceneController controller,
   ) {
-    // Placeholder for DartBlock editor integration
-    // This will be replaced with actual DartBlockEditor widget once the package is available
+    // TODO: Integrate real DartBlockEditor widget from dartblock_code package
+    // Example usage:
+    // return DartBlockEditor(
+    //   program: _program,
+    //   canChange: true,
+    //   canDelete: true,
+    //   canReorder: true,
+    //   canRun: true,
+    //   onChanged: (changedProgram) {
+    //     setState(() {
+    //       _program = changedProgram;
+    //       _hasChanges = true;
+    //     });
+    //   },
+    // );
+    
+    // Placeholder for now
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
