@@ -1,0 +1,123 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:dartssh2/dartssh2.dart';
+import 'package:xterm/xterm.dart';
+
+class TerminalSession {
+  final String id;
+  final String host;
+  final int port;
+  final String username;
+  final String password;
+
+  // The UI Engine for this specific tab
+  late final Terminal terminal;
+
+  // The actual SSH connection
+  SSHClient? _client;
+
+  // The active SSH session
+  SSHSession? _session;
+
+  // KeepAlive timer
+  Timer? _keepAliveTimer;
+
+  // Connection Status
+  bool isConnected = false;
+
+  TerminalSession(this.id, this.host, this.port, this.username, this.password) {
+    terminal = Terminal(maxLines: 10000);
+  }
+
+  Future<void> connect() async {
+    terminal.write('Connecting to $host...\r\n');
+
+    try {
+      final socket = await SSHSocket.connect(
+        host,
+        port,
+        timeout: Duration(seconds: 10),
+      );
+
+      _client = SSHClient(
+        socket,
+        username: username,
+        onPasswordRequest: () => password,
+      );
+
+      terminal.write('Connected.\r\n');
+      isConnected = true;
+
+      // Start the shell with specific dimensions
+      _session = await _client!.shell(
+        pty: SSHPtyConfig(
+          width: terminal.viewWidth,
+          height: terminal.viewHeight,
+        ),
+      );
+
+      // 1. Pipe SSH Output -> Terminal
+      _session!.stdout.listen(
+        (data) {
+          terminal.write(utf8.decode(data));
+        },
+        onDone: _onDisconnected,
+        onError: (e) => _onDisconnected(),
+      );
+
+      _session!.stderr.listen((data) {
+        terminal.write(utf8.decode(data));
+      });
+
+      // 2. Pipe Terminal Input -> SSH
+      terminal.onOutput = (input) {
+        if (_client != null && !_client!.isClosed && _session != null) {
+          _session!.write(utf8.encode(input));
+        }
+      };
+
+      // 3. Start KeepAlive (Crucial for mobile)
+      _startKeepAlive();
+    } catch (e) {
+      terminal.write('Error: $e\r\n');
+      _onDisconnected();
+    }
+  }
+
+  void _startKeepAlive() {
+    _keepAliveTimer = Timer.periodic(Duration(seconds: 15), (timer) async {
+      if (_client == null || _client!.isClosed) {
+        timer.cancel();
+        _keepAliveTimer = null;
+        return;
+      }
+      // Send a ping to keep the NAT traversal open
+      try {
+        await _client!.ping();
+      } catch (_) {
+        _onDisconnected();
+      }
+    });
+  }
+
+  void _onDisconnected() {
+    if (!isConnected) return; // Already disconnected
+    isConnected = false;
+    terminal.write(
+      '\r\n\x1b[31m⚠️ Connection Lost. Press Enter to reconnect...\x1b[0m\r\n',
+    );
+  }
+
+  Future<void> dispose() async {
+    _keepAliveTimer?.cancel();
+    _keepAliveTimer = null;
+    try {
+      _session?.close();
+      _session = null;
+    } catch (_) {}
+    try {
+      _client?.close();
+      _client = null;
+    } catch (_) {}
+  }
+}
