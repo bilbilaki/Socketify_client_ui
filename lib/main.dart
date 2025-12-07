@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:sizer/sizer.dart';
 import 'pages/splash_screen.dart';
+import 'models/scene/data_model.dart';
 
 void main() async {
+  // Initialize container registry before app starts
+  ContainerRegistry.registerBuiltIns();
 WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
     await CrossPlatformVideoThumbnails.initialize();

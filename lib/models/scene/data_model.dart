@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+// Import DartBlock types - using relative path from models to dartblock
+// When dartblock_code package is available, replace with:
+// import 'package:dartblock_code/dartblock_code.dart';
+import '../../dartblock/dart_block_types.dart';
+
 /// Base node in the logical scene tree.
 abstract class SceneNode {
   final String id;
@@ -22,6 +27,9 @@ abstract class SceneNode {
 /// Leaf node: wraps any arbitrary widget.
 class SceneLeafNode extends SceneNode {
   final Widget Function(BuildContext) builder;
+  
+  /// Optional script to run on user interaction (e.g., tap, double-tap)
+  DartBlockProgram? onInteractionScript;
 
   SceneLeafNode({
     required super.id,
@@ -30,6 +38,7 @@ class SceneLeafNode extends SceneNode {
     super.locked,
     super.selected,
     super.localRect,
+    this.onInteractionScript,
   });
 }
 

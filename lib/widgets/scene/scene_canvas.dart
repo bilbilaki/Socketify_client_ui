@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../controlers/scene_controler.dart';
 import '../../models/scene/data_model.dart';
 import 'tree_renderer.dart';
+import 'properties_panel.dart';
 
 class SceneCanvas extends ConsumerWidget {
   const SceneCanvas({super.key});
@@ -121,6 +122,9 @@ class _SceneItemWidget extends ConsumerWidget {
           final multi = _isMultiSelectPressed();
           controller.toggleSelection(node.id, multi: multi);
         },
+        onDoubleTap: () {
+          _openPropertiesPanel(context);
+        },
         onPanStart: (details) {
           controller.startDragFrame(node.id, details.globalPosition);
         },
@@ -174,6 +178,15 @@ class _SceneItemWidget extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _openPropertiesPanel(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => PropertiesPanel(node: node),
     );
   }
 
