@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 import 'pages/splash_screen.dart';
+import 'models/scene/data_model.dart';
 
 void main() {
+  // Initialize container registry before app starts
+  ContainerRegistry.registerBuiltIns();
   runApp(const ProviderScope(child: MyApp()));
 }
 
