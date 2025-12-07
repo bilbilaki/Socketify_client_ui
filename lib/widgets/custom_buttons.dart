@@ -410,6 +410,7 @@ class CustomLongPressButton extends StatefulWidget {
 
 class _CustomLongPressButtonState extends State<CustomLongPressButton> {
   bool _isLongPressed = false;
+  // ignore: unused_field
   late DateTime _pressStartTime;
 
   @override

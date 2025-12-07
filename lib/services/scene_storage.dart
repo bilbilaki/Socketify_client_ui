@@ -287,6 +287,7 @@ class SceneNodeDeserializer {
     final id = json['id'] as String;
     final name = json['name'] as String?;
     final locked = json['locked'] as bool? ?? false;
+    // ignore: unused_local_variable
     final selected = json['selected'] as bool? ?? false;
 
     Rect? localRect;

@@ -34,6 +34,7 @@ class BluetoothTransport with TransportMixin implements TransportInterface {
   
   BluetoothDevice? _connectedDevice;
   BluetoothCharacteristic? _commandCharacteristic;
+  // ignore: unused_field
   BluetoothCharacteristic? _responseCharacteristic;
   
   StreamSubscription?  _scanSubscription;

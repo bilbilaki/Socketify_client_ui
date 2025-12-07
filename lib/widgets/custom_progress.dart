@@ -302,6 +302,7 @@ class CustomSteppedProgress extends StatelessWidget {
                 children: List.generate(totalSteps, (index) {
                   final isCompleted = index < currentStep - 1;
                   final isActive = index == currentStep - 1;
+                  // ignore: unused_local_variable
                   final isPending = index > currentStep - 1;
 
                   return Expanded(

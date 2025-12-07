@@ -11,6 +11,7 @@ class TouchpadWidget extends StatefulWidget {
 
 class _TouchpadWidgetState extends State<TouchpadWidget> {
   Offset? _lastPosition;
+  // ignore: unused_field
   DateTime? _lastTap;
   int _tapCount = 0;
   
@@ -60,6 +61,7 @@ class _TouchpadWidgetState extends State<TouchpadWidget> {
     widget.onSendCommand(_encodeMouseClick(2, false));
   }
 
+  // ignore: unused_element
   void _onScroll(double delta) {
     final scrollAmount = delta > 0 ? -1 : 1; // Invert for natural scrolling
     widget.onSendCommand(_encodeMouseScroll(scrollAmount));
