@@ -1,9 +1,15 @@
+import 'package:cross_platform_video_thumbnails/cross_platform_video_thumbnails.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:sizer/sizer.dart';
 import 'pages/splash_screen.dart';
 
-void main() {
+void main() async {
+WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
+    await CrossPlatformVideoThumbnails.initialize();
+
   runApp(const ProviderScope(child: MyApp()));
 }
 
