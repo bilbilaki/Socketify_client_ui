@@ -47,6 +47,4 @@ class SceneTreeRenderer extends ConsumerWidget {
     // Use the new ContainerWidget for styled rendering
     return ContainerWidget(container: container);
   }
-
-
 }

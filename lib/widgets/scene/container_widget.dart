@@ -9,7 +9,7 @@ import 'tree_renderer.dart';
 /// similar to StatementWidget in DartBlock.
 class ContainerWidget extends ConsumerWidget {
   static const double _cardElevation = 8.0;
-  
+
   final SceneContainerNode container;
 
   const ContainerWidget({super.key, required this.container});
@@ -104,7 +104,7 @@ class ContainerWidget extends ConsumerWidget {
           // Body section with children
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: _buildContainerBody(context, ref, container),
+            child: _buildContainerBody(context, ref),
           ),
         ],
       ),
@@ -112,11 +112,7 @@ class ContainerWidget extends ConsumerWidget {
   }
 
   /// Build the body of the container, showing the children list view
-  Widget _buildContainerBody(
-    BuildContext context,
-    WidgetRef ref,
-    SceneContainerNode container,
-  ) {
+  Widget _buildContainerBody(BuildContext context, WidgetRef ref) {
     // Return the children list view which manages drag-and-drop and reordering
     return ContainerChildrenListView(container: container);
   }
@@ -127,7 +123,7 @@ class ContainerWidget extends ConsumerWidget {
 class ContainerChildrenListView extends ConsumerWidget {
   static const double _dropTargetActiveHeight = 20.0;
   static const double _dropTargetInactiveHeight = 8.0;
-  
+
   final SceneContainerNode container;
 
   const ContainerChildrenListView({super.key, required this.container});
