@@ -616,6 +616,24 @@ class SceneController extends StateNotifier<SceneControllerState> {
     _updateState();
   }
 
+  /// Update the interaction script for a node
+  void updateNodeInteractionScript(String nodeId, dynamic script) {
+    final node = getNode(nodeId);
+    if (node is SceneLeafNode) {
+      node.onInteractionScript = script;
+      _updateState();
+    }
+  }
+
+  /// Update the name of a node
+  void updateNodeName(String nodeId, String newName) {
+    final node = getNode(nodeId);
+    if (node != null) {
+      node.name = newName;
+      _updateState();
+    }
+  }
+
   /// Execute interaction script for a node
   Future<void> executeNodeInteraction(
     String nodeId,

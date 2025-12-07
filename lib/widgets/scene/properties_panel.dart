@@ -359,7 +359,9 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
   void _saveChanges(SceneController controller) {
     if (widget.node is SceneLeafNode) {
       final leaf = widget.node as SceneLeafNode;
-      leaf.onInteractionScript = _program;
+      
+      // Update via SceneController to ensure proper state management
+      controller.updateNodeInteractionScript(leaf.id, _program);
       
       setState(() {
         _hasChanges = false;

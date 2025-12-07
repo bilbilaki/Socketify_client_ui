@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../dartblock/dart_block_types.dart';
+// Import DartBlock types - using relative path from models to dartblock
+// When dartblock_code package is available, replace with:
+// import 'package:dartblock_code/dartblock_code.dart';
+import '../../dartblock/dart_block_types.dart';
 
 /// Base node in the logical scene tree.
 abstract class SceneNode {

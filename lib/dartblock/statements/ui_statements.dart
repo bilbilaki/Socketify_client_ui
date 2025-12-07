@@ -33,10 +33,18 @@ class SetTextStatement extends Statement {
   }
 
   factory SetTextStatement.fromJson(Map<String, dynamic> json) {
-    // Placeholder - needs actual dartblock expression deserialization
+    // PLACEHOLDER: This is a simplified deserialization.
+    // When dartblock_code package is available, replace with proper
+    // DartBlockAlgebraicExpression deserialization that supports
+    // all expression types (variables, operators, function calls, etc.)
+    final newTextValue = json['newText'];
+    final newTextExpr = newTextValue is Map
+        ? _StringLiteralExpression(newTextValue['value'] as String? ?? '')
+        : _StringLiteralExpression(newTextValue as String? ?? '');
+    
     return SetTextStatement(
       targetNodeId: json['targetNodeId'] as String,
-      newText: _StringLiteralExpression(json['newText'] as String? ?? ''),
+      newText: newTextExpr,
     );
   }
 }

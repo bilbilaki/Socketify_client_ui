@@ -78,16 +78,13 @@ class SocketifyExecutor extends DartBlockExecutor {
         final nodePrefix = key.split('_name').first;
         final nodeId = variables['${nodePrefix}_id'] as String?;
         if (nodeId != null) {
-          final node = sceneController.getNode(nodeId);
-          if (node != null && value is String) {
-            node.name = value;
-          }
+          // Use SceneController method to update node name
+          sceneController.updateNodeName(nodeId, value as String);
         }
       }
     }
 
-    // Trigger UI update
-    sceneController.state = sceneController.state.copyWith(isDirty: true);
+    // State is already updated by SceneController methods
   }
 
   @override
