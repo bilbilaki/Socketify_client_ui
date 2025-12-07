@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../controlers/scene_controler.dart';
 import '../../models/scene/data_model.dart';
+import 'container_widget.dart';
 
 /// Renders a SceneNode tree into real Flutter widgets, with drag targets
 /// to reorder children and move nodes between containers.
@@ -43,99 +44,9 @@ class SceneTreeRenderer extends ConsumerWidget {
     WidgetRef ref,
     SceneContainerNode container,
   ) {
-    // Ensure built-in containers are available for registry-based builds
-    ContainerRegistry.registerBuiltIns();
-
-    final childrenWidgets = <Widget>[];
-    for (var i = 0; i < container.children.length; i++) {
-      final childNode = container.children[i];
-
-      // Drop area before each child for reordering/moving into this container
-      childrenWidgets.add(
-        _buildDropTarget(
-          context: context,
-          ref: ref,
-          targetContainer: container,
-          insertIndex: i,
-        ),
-      );
-
-      childrenWidgets.add(SceneTreeRenderer(node: childNode));
-    }
-
-    // Drop area at the end of the list
-    childrenWidgets.add(
-      _buildDropTarget(
-        context: context,
-        ref: ref,
-        targetContainer: container,
-        insertIndex: container.children.length,
-      ),
-    );
-
-    // Prefer registry if available (including custom types)
-    final key = container.type.name; // row/column/grid/etc.
-    final customKey = container.config['customType'] as String?;
-    final builder = (customKey != null)
-        ? ContainerRegistry.get(customKey)
-        : ContainerRegistry.get(key);
-
-    Widget inner;
-    if (builder != null) {
-      inner = builder(context, container, childrenWidgets);
-    } else {
-      // Fallback: simple Column
-      inner = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: childrenWidgets,
-      );
-    }
-
-    final isSelected = container.selected;
-
-    // Light background so containers are visually distinct.
-    return Container(
-      decoration: BoxDecoration(
-        color: (isSelected
-            ? Colors.blueGrey.withOpacity(0.12)
-            : Colors.blueGrey.withOpacity(0.05)),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: inner,
-    );
+    // Use the new ContainerWidget for styled rendering
+    return ContainerWidget(container: container);
   }
 
-  Widget _buildDropTarget({
-    required BuildContext context,
-    required WidgetRef ref,
-    required SceneContainerNode targetContainer,
-    required int insertIndex,
-  }) {
-    return DragTarget<String>(
-      onWillAccept: (data) => data != null,
-      onAccept: (nodeId) {
-        final controller = ref.read(sceneControllerProvider.notifier);
-        controller.moveNodeToContainer(
-          nodeId: nodeId,
-          targetContainerId: targetContainer.id,
-          newIndex: insertIndex,
-        );
-      },
-      builder: (context, candidateData, rejectedData) {
-        final isActive = candidateData.isNotEmpty;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          height: isActive ? 12 : 4,
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          decoration: BoxDecoration(
-            color: isActive
-                ? Colors.blueAccent.withOpacity(0.25)
-                : Colors.transparent,
-          ),
-        );
-      },
-    );
-  }
+
 }
