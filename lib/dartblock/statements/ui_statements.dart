@@ -9,6 +9,26 @@ abstract class SocketifyStatement {
   
   /// Convert to JSON
   Map<String, dynamic> toJson();
+  
+  /// Helper method to extract string value from DartBlockValue
+  /// Handles DartBlockStringValue and falls back to toString()
+  static String _extractStringValue(DartBlockValue value) {
+    if (value is DartBlockStringValue) {
+      return value.value;
+    }
+    // For other types, convert to string representation
+    return value.toString();
+  }
+  
+  /// Helper method to extract boolean value from DartBlockBooleanExpression
+  /// Note: Proper evaluation would require a DartBlockArbiter
+  /// For now, returns default value for complex expressions
+  static bool _extractBooleanValue(DartBlockBooleanExpression expr, {bool defaultValue = true}) {
+    // TODO: Implement proper evaluation with DartBlockArbiter when available
+    // For constant expressions, we could try to extract the value
+    // For now, return the default
+    return defaultValue;
+  }
 }
 
 /// Statement to set text content of a node
@@ -23,12 +43,8 @@ class SetTextStatement extends SocketifyStatement {
 
   @override
   Future<void> execute(SceneController sceneController) async {
-    // For now, since we don't have a DartBlockArbiter available here,
-    // we'll assume the value is a DartBlockStringValue and access it directly
-    // In a full integration, this would be passed through proper execution context
-    final textValue = newText is DartBlockStringValue 
-        ? (newText as DartBlockStringValue).value
-        : newText.toString();
+    // Extract string value from DartBlockValue
+    final textValue = _extractStringValue(newText);
     sceneController.updateNodeConfig(targetNodeId, {'text': textValue});
   }
 
@@ -80,10 +96,8 @@ class SetPropertyStatement extends SocketifyStatement {
 
   @override
   Future<void> execute(SceneController sceneController) async {
-    // Get the value from the DartBlockValue
-    final propertyValue = value is DartBlockStringValue
-        ? (value as DartBlockStringValue).value
-        : value.toString();
+    // Extract value from DartBlockValue
+    final propertyValue = _extractStringValue(value);
     sceneController.updateNodeConfig(targetNodeId, {propertyName: propertyValue});
   }
 
@@ -131,11 +145,10 @@ class SetNodeVisibleStatement extends SocketifyStatement {
 
   @override
   Future<void> execute(SceneController sceneController) async {
-    // For boolean expressions, we'd need a DartBlockArbiter to evaluate
-    // For now, use fromConstant pattern
-    final isVisible = visible is DartBlockBooleanExpression
-        ? true // Default to true, proper evaluation would need arbiter
-        : true;
+    // Extract boolean value from expression
+    // Note: Full evaluation requires DartBlockArbiter, which isn't available in this context
+    // For now, we use a simple default value approach
+    final isVisible = _extractBooleanValue(visible, defaultValue: true);
     sceneController.updateNodeConfig(targetNodeId, {'visible': isVisible});
   }
 
@@ -179,11 +192,14 @@ class NavigateToSceneStatement extends SocketifyStatement {
 
   @override
   Future<void> execute(SceneController sceneController) async {
-    // Note: Navigation requires a leafWidgetBuilder which isn't available here
-    // This would need to be passed through a different mechanism
-    // For now, just log the intent
-    print('[Socketify] Navigate to scene: $sceneId');
-    // In a real implementation:
+    // TODO: Navigation requires a leafWidgetBuilder callback which isn't available
+    // in this execution context. This needs to be passed through SocketifyExecutor
+    // or a different mechanism. For now, we log the intent but don't actually navigate.
+    // This is a known limitation that should be addressed in future integration work.
+    print('[Socketify] WARNING: NavigateToSceneStatement not fully implemented. '
+          'Target scene: $sceneId');
+    
+    // Future implementation should be:
     // await sceneController.loadScene(sceneId, leafWidgetBuilder);
   }
 
@@ -212,9 +228,7 @@ class SocketifyPrintStatement extends SocketifyStatement {
 
   @override
   Future<void> execute(SceneController sceneController) async {
-    final value = message is DartBlockStringValue
-        ? (message as DartBlockStringValue).value
-        : message.toString();
+    final value = _extractStringValue(message);
     print('[Socketify] $value');
   }
 

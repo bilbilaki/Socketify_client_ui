@@ -20,14 +20,11 @@ class SocketifyExecutor {
 
   /// Execute the program with SceneController context
   Future<void> execute() async {
-    // Store context in executor's environment before execution
-    // This allows statements to access the SceneController
-    _executor.environment.declareVariable(
-      _executor,
-      'sceneController',
-      DartBlockDataType.stringType, // Placeholder type, actual value is dynamic
-      null,
-    );
+    // Note: SceneController context is stored in this SocketifyExecutor instance
+    // and accessible to Socketify-specific statements that are passed the SceneController
+    // directly. For dartblock_code statements, context would need to be passed
+    // through the DartBlockArbiter's environment, but that requires proper variable
+    // value types which aren't available for non-primitive types like SceneController.
     
     // Execute the program
     await _executor.execute();
