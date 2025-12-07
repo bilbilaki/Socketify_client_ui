@@ -599,11 +599,72 @@ class SceneController extends StateNotifier<SceneControllerState> {
     _scheduleAutoSave();
   }
 
+  /// Update configuration of a node (used by DartBlock scripts)
+  void updateNodeConfig(String nodeId, Map<String, dynamic> config) {
+    final node = getNode(nodeId);
+    if (node == null) return;
+
+    if (node is SceneContainerNode) {
+      // Update container config
+      node.config = {...node.config, ...config};
+    } else if (node is SceneLeafNode) {
+      // For leaf nodes, we might store config in a custom way
+      // This is a placeholder - actual implementation depends on widget types
+      // For now, we'll just mark as dirty to trigger rebuild
+    }
+
+    _updateState();
+  }
+
+  /// Execute interaction script for a node
+  Future<void> executeNodeInteraction(
+    String nodeId,
+    Widget Function(BuildContext, Map<String, dynamic>) leafWidgetBuilder,
+  ) async {
+    final node = getNode(nodeId);
+    if (node is! SceneLeafNode || node.onInteractionScript == null) {
+      return;
+    }
+
+    // Import the executor here to avoid circular dependencies
+    final executor = _createExecutor(leafWidgetBuilder);
+    await executor.execute(node.onInteractionScript!);
+  }
+
+  /// Create a DartBlock executor with SceneController context
+  dynamic _createExecutor(
+    Widget Function(BuildContext, Map<String, dynamic>) leafWidgetBuilder,
+  ) {
+    // This will be implemented with actual dartblock_code imports
+    // For now, create a minimal executor
+    final context = {
+      'sceneController': this,
+      'leafWidgetBuilder': leafWidgetBuilder,
+      'scene': scene,
+      'frames': framesByNodeId,
+    };
+
+    // Return a basic executor (placeholder)
+    return _BasicExecutor(context: context);
+  }
+
   /// Dispose timer
   @override
   void dispose() {
     _autoSaveTimer?.cancel();
     super.dispose();
+  }
+}
+
+/// Placeholder executor - will be replaced with actual DartBlockExecutor
+class _BasicExecutor {
+  final Map<String, dynamic> context;
+
+  _BasicExecutor({required this.context});
+
+  Future<void> execute(dynamic program) async {
+    // Placeholder - actual implementation will use dartblock_code package
+    print('Executing program: $program');
   }
 }
 
