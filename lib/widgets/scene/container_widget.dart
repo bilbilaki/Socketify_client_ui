@@ -102,13 +102,21 @@ class ContainerWidget extends ConsumerWidget {
           // Body section with children
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: ContainerChildrenListView(
-              container: container,
-            ),
+            child: _buildContainerBody(context, ref, container),
           ),
         ],
       ),
     );
+  }
+
+  /// Build the body of the container, showing the children list view
+  Widget _buildContainerBody(
+    BuildContext context,
+    WidgetRef ref,
+    SceneContainerNode container,
+  ) {
+    // Return the children list view which manages drag-and-drop and reordering
+    return ContainerChildrenListView(container: container);
   }
 }
 
@@ -158,7 +166,11 @@ class ContainerChildrenListView extends ConsumerWidget {
 
   Widget _buildEmptyPlaceholder(BuildContext context, WidgetRef ref) {
     return DragTarget<String>(
-      onWillAccept: (data) => data != null,
+      onWillAccept: (data) {
+        if (data == null || data == container.id) return false;
+        // Prevent dropping a container onto its own descendants
+        return !_isDescendantOf(data, container);
+      },
       onAccept: (nodeId) {
         final controller = ref.read(sceneControllerProvider.notifier);
         controller.moveNodeToContainer(
@@ -203,7 +215,16 @@ class ContainerChildrenListView extends ConsumerWidget {
     // Build the drag target wrapper for dropping items
     return DragTarget<String>(
       key: ValueKey(childNode.id),
-      onWillAccept: (data) => data != null && data != childNode.id,
+      onWillAccept: (data) {
+        if (data == null || data == childNode.id) return false;
+        
+        // Prevent dropping a container onto its own descendants (circular reference check)
+        if (childNode is SceneContainerNode) {
+          return !_isDescendantOf(data, childNode);
+        }
+        
+        return true;
+      },
       onAccept: (nodeId) {
         final controller = ref.read(sceneControllerProvider.notifier);
         controller.moveNodeToContainer(
@@ -265,7 +286,11 @@ class ContainerChildrenListView extends ConsumerWidget {
 
   Widget _buildEndDropTarget(BuildContext context, WidgetRef ref) {
     return DragTarget<String>(
-      onWillAccept: (data) => data != null,
+      onWillAccept: (data) {
+        if (data == null || data == container.id) return false;
+        // Prevent dropping a container onto its own descendants
+        return !_isDescendantOf(data, container);
+      },
       onAccept: (nodeId) {
         final controller = ref.read(sceneControllerProvider.notifier);
         controller.moveNodeToContainer(
@@ -319,5 +344,18 @@ class ContainerChildrenListView extends ConsumerWidget {
       targetContainerId: container.id,
       newIndex: newIndex,
     );
+  }
+
+  /// Check if nodeId is a descendant of the given container (to prevent circular references)
+  bool _isDescendantOf(String nodeId, SceneContainerNode container) {
+    for (final child in container.children) {
+      if (child.id == nodeId) return true;
+      
+      if (child is SceneContainerNode) {
+        if (_isDescendantOf(nodeId, child)) return true;
+      }
+    }
+    
+    return false;
   }
 }

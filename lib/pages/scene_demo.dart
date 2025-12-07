@@ -7,6 +7,8 @@ import '../services/scene_storage.dart';
 import '../widgets/scene/scene_canvas.dart';
 
 void main() {
+  // Initialize container registry before app starts
+  ContainerRegistry.registerBuiltIns();
   runApp(const SceneApp());
 }
 
