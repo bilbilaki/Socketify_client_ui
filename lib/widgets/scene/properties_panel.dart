@@ -32,10 +32,11 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
     // DartBlockProgram.init takes List<Statement> and List<DartBlockCustomFunction>
     if (widget.node is SceneLeafNode) {
       final leaf = widget.node as SceneLeafNode;
-      _program = leaf.onInteractionScript ?? 
-          DartBlockProgram.init([], []); // Empty statements and custom functions
+      // Use existing script or create empty program with no statements or functions
+      _program = leaf.onInteractionScript ?? DartBlockProgram.init([], []);
     } else {
-      _program = DartBlockProgram.init([], []); // Empty statements and custom functions
+      // Container nodes don't have interaction scripts, create empty program
+      _program = DartBlockProgram.init([], []);
     }
   }
 

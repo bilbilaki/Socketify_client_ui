@@ -20,11 +20,18 @@ class SocketifyExecutor {
 
   /// Execute the program with SceneController context
   Future<void> execute() async {
-    // Note: SceneController context is stored in this SocketifyExecutor instance
-    // and accessible to Socketify-specific statements that are passed the SceneController
-    // directly. For dartblock_code statements, context would need to be passed
-    // through the DartBlockArbiter's environment, but that requires proper variable
-    // value types which aren't available for non-primitive types like SceneController.
+    // TODO: Design proper execution context mechanism for Socketify statements
+    // Current architecture limitation: Socketify-specific statements (SetTextStatement, etc.)
+    // receive SceneController directly, but dartblock_code's standard statements use
+    // DartBlockArbiter's environment which only supports primitive DartBlockValue types.
+    // 
+    // Potential solutions to explore:
+    // 1. Extend DartBlockValue to support custom object types
+    // 2. Use dependency injection pattern for SceneController
+    // 3. Create custom DartBlockArbiter subclass with SceneController access
+    // 4. Implement callback-based architecture for Socketify operations
+    //
+    // See: https://github.com/aryobarzan/dartblock for DartBlockArbiter design
     
     // Execute the program
     await _executor.execute();

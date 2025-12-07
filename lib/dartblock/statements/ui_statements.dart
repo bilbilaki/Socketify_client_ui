@@ -21,13 +21,21 @@ abstract class SocketifyStatement {
   }
   
   /// Helper method to extract boolean value from DartBlockBooleanExpression
-  /// Note: Proper evaluation would require a DartBlockArbiter
-  /// For now, returns default value for complex expressions
+  /// Note: Proper evaluation would require a DartBlockArbiter with proper execution context
+  /// TODO: Integrate DartBlockArbiter for proper expression evaluation
+  /// See: https://github.com/aryobarzan/dartblock - DartBlockBooleanExpression.getValue()
   static bool _extractBooleanValue(DartBlockBooleanExpression expr, {bool defaultValue = true}) {
-    // TODO: Implement proper evaluation with DartBlockArbiter when available
-    // For constant expressions, we could try to extract the value
-    // For now, return the default
-    return defaultValue;
+    // For constant boolean expressions, try to extract the value
+    // This is a simplified approach - full evaluation requires DartBlockArbiter
+    try {
+      // Check if this is a constant expression by examining the compositionNode
+      // In dartblock_code, constant nodes have a getValue that doesn't need context
+      // For now, return the default as we don't have arbiter context
+      // TODO: Add arbiter-based evaluation when execution context is available
+      return defaultValue;
+    } catch (e) {
+      return defaultValue;
+    }
   }
 }
 
@@ -194,10 +202,14 @@ class NavigateToSceneStatement extends SocketifyStatement {
   Future<void> execute(SceneController sceneController) async {
     // TODO: Navigation requires a leafWidgetBuilder callback which isn't available
     // in this execution context. This needs to be passed through SocketifyExecutor
-    // or a different mechanism. For now, we log the intent but don't actually navigate.
-    // This is a known limitation that should be addressed in future integration work.
-    print('[Socketify] WARNING: NavigateToSceneStatement not fully implemented. '
-          'Target scene: $sceneId');
+    // or a different mechanism. 
+    // Issue: Need to design execution context that provides leafWidgetBuilder to statements
+    // For now, throw a clear error rather than silently failing
+    throw UnimplementedError(
+      'NavigateToSceneStatement requires execution context with leafWidgetBuilder. '
+      'Scene navigation is not yet fully integrated with DartBlock execution. '
+      'Target scene: $sceneId'
+    );
     
     // Future implementation should be:
     // await sceneController.loadScene(sceneId, leafWidgetBuilder);
