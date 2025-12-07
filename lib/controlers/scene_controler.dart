@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../models/scene/data_model.dart';
 import '../services/scene_storage.dart';
+import '../dartblock/socketify_executor.dart';
 
 enum ResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
 
@@ -645,25 +646,22 @@ class SceneController extends StateNotifier<SceneControllerState> {
     }
 
     // Import the executor here to avoid circular dependencies
-    final executor = _createExecutor(leafWidgetBuilder);
-    await executor.execute(node.onInteractionScript!);
+    final executor = _createExecutor(leafWidgetBuilder, node.onInteractionScript!);
+    await executor.execute();
   }
 
   /// Create a DartBlock executor with SceneController context
   dynamic _createExecutor(
     Widget Function(BuildContext, Map<String, dynamic>) leafWidgetBuilder,
+    dynamic program,
   ) {
-    // This will be implemented with actual dartblock_code imports
-    // For now, create a minimal executor
-    final context = {
-      'sceneController': this,
-      'leafWidgetBuilder': leafWidgetBuilder,
-      'scene': scene,
-      'frames': framesByNodeId,
-    };
-
-    // Return a basic executor (placeholder)
-    return _BasicExecutor(context: context);
+    // Import SocketifyExecutor to provide SceneController context
+    // Note: We import here to avoid circular dependencies
+    return SocketifyExecutor(
+      sceneController: this,
+      program: program,
+      leafWidgetBuilder: leafWidgetBuilder,
+    );
   }
 
   /// Dispose timer
@@ -671,18 +669,6 @@ class SceneController extends StateNotifier<SceneControllerState> {
   void dispose() {
     _autoSaveTimer?.cancel();
     super.dispose();
-  }
-}
-
-/// Placeholder executor - will be replaced with actual DartBlockExecutor
-class _BasicExecutor {
-  final Map<String, dynamic> context;
-
-  _BasicExecutor({required this.context});
-
-  Future<void> execute(dynamic program) async {
-    // Placeholder - actual implementation will use dartblock_code package
-    print('Executing program: $program');
   }
 }
 

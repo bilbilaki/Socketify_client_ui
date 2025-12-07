@@ -1,10 +1,48 @@
 import '../../controlers/scene_controler.dart';
 import '../dart_block_types.dart';
 
+/// Base class for Socketify-specific UI statements
+/// These are custom statements for Socketify operations, not part of dartblock_code
+abstract class SocketifyStatement {
+  /// Execute this statement with access to SceneController
+  Future<void> execute(SceneController sceneController);
+  
+  /// Convert to JSON
+  Map<String, dynamic> toJson();
+  
+  /// Helper method to extract string value from DartBlockValue
+  /// Handles DartBlockStringValue and falls back to toString()
+  static String _extractStringValue(DartBlockValue value) {
+    if (value is DartBlockStringValue) {
+      return value.value;
+    }
+    // For other types, convert to string representation
+    return value.toString();
+  }
+  
+  /// Helper method to extract boolean value from DartBlockBooleanExpression
+  /// Note: Proper evaluation would require a DartBlockArbiter with proper execution context
+  /// TODO: Integrate DartBlockArbiter for proper expression evaluation
+  /// See: https://github.com/aryobarzan/dartblock - DartBlockBooleanExpression.getValue()
+  static bool _extractBooleanValue(DartBlockBooleanExpression expr, {bool defaultValue = true}) {
+    // For constant boolean expressions, try to extract the value
+    // This is a simplified approach - full evaluation requires DartBlockArbiter
+    try {
+      // Check if this is a constant expression by examining the compositionNode
+      // In dartblock_code, constant nodes have a getValue that doesn't need context
+      // For now, return the default as we don't have arbiter context
+      // TODO: Add arbiter-based evaluation when execution context is available
+      return defaultValue;
+    } catch (e) {
+      return defaultValue;
+    }
+  }
+}
+
 /// Statement to set text content of a node
-class SetTextStatement extends Statement {
+class SetTextStatement extends SocketifyStatement {
   final String targetNodeId;
-  final DartBlockAlgebraicExpression newText;
+  final DartBlockValue newText;
 
   SetTextStatement({
     required this.targetNodeId,
@@ -12,14 +50,9 @@ class SetTextStatement extends Statement {
   });
 
   @override
-  Future<void> execute(DartBlockExecutor executor) async {
-    // Access the SceneController via the executor's context
-    final sceneController = executor.context['sceneController'] as SceneController?;
-    if (sceneController == null) {
-      throw Exception('SceneController not found in executor context');
-    }
-
-    final textValue = newText.evaluate();
+  Future<void> execute(SceneController sceneController) async {
+    // Extract string value from DartBlockValue
+    final textValue = _extractStringValue(newText);
     sceneController.updateNodeConfig(targetNodeId, {'text': textValue});
   }
 
@@ -33,14 +66,22 @@ class SetTextStatement extends Statement {
   }
 
   factory SetTextStatement.fromJson(Map<String, dynamic> json) {
-    // PLACEHOLDER: This is a simplified deserialization.
-    // When dartblock_code package is available, replace with proper
-    // DartBlockAlgebraicExpression deserialization that supports
-    // all expression types (variables, operators, function calls, etc.)
+    // Use proper DartBlockStringValue instead of placeholder
     final newTextValue = json['newText'];
-    final newTextExpr = newTextValue is Map
-        ? _StringLiteralExpression(newTextValue['value'] as String? ?? '')
-        : _StringLiteralExpression(newTextValue as String? ?? '');
+    final DartBlockValue newTextExpr;
+    
+    if (newTextValue is Map) {
+      // Try to deserialize as DartBlockValue
+      try {
+        newTextExpr = DartBlockValue.fromJson(newTextValue);
+      } catch (e) {
+        // Fallback to string value
+        newTextExpr = DartBlockStringValue.init(newTextValue['value'] as String? ?? '');
+      }
+    } else {
+      // Simple string value
+      newTextExpr = DartBlockStringValue.init(newTextValue as String? ?? '');
+    }
     
     return SetTextStatement(
       targetNodeId: json['targetNodeId'] as String,
@@ -50,10 +91,10 @@ class SetTextStatement extends Statement {
 }
 
 /// Generic statement to set any property of a node
-class SetPropertyStatement extends Statement {
+class SetPropertyStatement extends SocketifyStatement {
   final String targetNodeId;
   final String propertyName;
-  final DartBlockAlgebraicExpression value;
+  final DartBlockValue value;
 
   SetPropertyStatement({
     required this.targetNodeId,
@@ -62,13 +103,9 @@ class SetPropertyStatement extends Statement {
   });
 
   @override
-  Future<void> execute(DartBlockExecutor executor) async {
-    final sceneController = executor.context['sceneController'] as SceneController?;
-    if (sceneController == null) {
-      throw Exception('SceneController not found in executor context');
-    }
-
-    final propertyValue = value.evaluate();
+  Future<void> execute(SceneController sceneController) async {
+    // Extract value from DartBlockValue
+    final propertyValue = _extractStringValue(value);
     sceneController.updateNodeConfig(targetNodeId, {propertyName: propertyValue});
   }
 
@@ -83,18 +120,31 @@ class SetPropertyStatement extends Statement {
   }
 
   factory SetPropertyStatement.fromJson(Map<String, dynamic> json) {
+    final valueData = json['value'];
+    final DartBlockValue propertyValue;
+    
+    if (valueData is Map) {
+      try {
+        propertyValue = DartBlockValue.fromJson(valueData);
+      } catch (e) {
+        propertyValue = DartBlockStringValue.init(valueData.toString());
+      }
+    } else {
+      propertyValue = DartBlockStringValue.init(valueData.toString());
+    }
+    
     return SetPropertyStatement(
       targetNodeId: json['targetNodeId'] as String,
       propertyName: json['propertyName'] as String,
-      value: _StringLiteralExpression(json['value'].toString()),
+      value: propertyValue,
     );
   }
 }
 
 /// Statement to show or hide a node
-class SetNodeVisibleStatement extends Statement {
+class SetNodeVisibleStatement extends SocketifyStatement {
   final String targetNodeId;
-  final DartBlockAlgebraicExpression visible;
+  final DartBlockBooleanExpression visible;
 
   SetNodeVisibleStatement({
     required this.targetNodeId,
@@ -102,13 +152,11 @@ class SetNodeVisibleStatement extends Statement {
   });
 
   @override
-  Future<void> execute(DartBlockExecutor executor) async {
-    final sceneController = executor.context['sceneController'] as SceneController?;
-    if (sceneController == null) {
-      throw Exception('SceneController not found in executor context');
-    }
-
-    final isVisible = visible.evaluate() as bool;
+  Future<void> execute(SceneController sceneController) async {
+    // Extract boolean value from expression
+    // Note: Full evaluation requires DartBlockArbiter, which isn't available in this context
+    // For now, we use a simple default value approach
+    final isVisible = _extractBooleanValue(visible, defaultValue: true);
     sceneController.updateNodeConfig(targetNodeId, {'visible': isVisible});
   }
 
@@ -122,15 +170,28 @@ class SetNodeVisibleStatement extends Statement {
   }
 
   factory SetNodeVisibleStatement.fromJson(Map<String, dynamic> json) {
+    final visibleValue = json['visible'];
+    final DartBlockBooleanExpression visibleExpr;
+    
+    if (visibleValue is Map) {
+      try {
+        visibleExpr = DartBlockBooleanExpression.fromJson(visibleValue);
+      } catch (e) {
+        visibleExpr = DartBlockBooleanExpression.fromConstant(visibleValue['value'] as bool? ?? true);
+      }
+    } else {
+      visibleExpr = DartBlockBooleanExpression.fromConstant(visibleValue as bool? ?? true);
+    }
+    
     return SetNodeVisibleStatement(
       targetNodeId: json['targetNodeId'] as String,
-      visible: _BoolLiteralExpression(json['visible'] as bool? ?? true),
+      visible: visibleExpr,
     );
   }
 }
 
 /// Statement to navigate to another scene
-class NavigateToSceneStatement extends Statement {
+class NavigateToSceneStatement extends SocketifyStatement {
   final String sceneId;
 
   NavigateToSceneStatement({
@@ -138,18 +199,20 @@ class NavigateToSceneStatement extends Statement {
   });
 
   @override
-  Future<void> execute(DartBlockExecutor executor) async {
-    final sceneController = executor.context['sceneController'] as SceneController?;
-    if (sceneController == null) {
-      throw Exception('SceneController not found in executor context');
-    }
-
-    // Load the target scene
-    // Note: This requires a leafWidgetBuilder callback
-    final leafWidgetBuilder = executor.context['leafWidgetBuilder'];
-    if (leafWidgetBuilder != null) {
-      await sceneController.loadScene(sceneId, leafWidgetBuilder);
-    }
+  Future<void> execute(SceneController sceneController) async {
+    // TODO: Navigation requires a leafWidgetBuilder callback which isn't available
+    // in this execution context. This needs to be passed through SocketifyExecutor
+    // or a different mechanism. 
+    // Issue: Need to design execution context that provides leafWidgetBuilder to statements
+    // For now, throw a clear error rather than silently failing
+    throw UnimplementedError(
+      'NavigateToSceneStatement requires execution context with leafWidgetBuilder. '
+      'Scene navigation is not yet fully integrated with DartBlock execution. '
+      'Target scene: $sceneId'
+    );
+    
+    // Future implementation should be:
+    // await sceneController.loadScene(sceneId, leafWidgetBuilder);
   }
 
   @override
@@ -168,67 +231,43 @@ class NavigateToSceneStatement extends Statement {
 }
 
 /// Print statement for debugging
-class PrintStatement extends Statement {
-  final DartBlockAlgebraicExpression message;
+class SocketifyPrintStatement extends SocketifyStatement {
+  final DartBlockValue message;
 
-  PrintStatement({
+  SocketifyPrintStatement({
     required this.message,
   });
 
   @override
-  Future<void> execute(DartBlockExecutor executor) async {
-    final value = message.evaluate();
-    print('[DartBlock] $value');
+  Future<void> execute(SceneController sceneController) async {
+    final value = _extractStringValue(message);
+    print('[Socketify] $value');
   }
 
   @override
   Map<String, dynamic> toJson() {
     return {
-      'type': 'PrintStatement',
+      'type': 'SocketifyPrintStatement',
       'message': message.toJson(),
     };
   }
 
-  factory PrintStatement.fromJson(Map<String, dynamic> json) {
-    return PrintStatement(
-      message: _StringLiteralExpression(json['message'] as String? ?? ''),
+  factory SocketifyPrintStatement.fromJson(Map<String, dynamic> json) {
+    final messageData = json['message'];
+    final DartBlockValue messageValue;
+    
+    if (messageData is Map) {
+      try {
+        messageValue = DartBlockValue.fromJson(messageData);
+      } catch (e) {
+        messageValue = DartBlockStringValue.init(messageData.toString());
+      }
+    } else {
+      messageValue = DartBlockStringValue.init(messageData as String? ?? '');
+    }
+    
+    return SocketifyPrintStatement(
+      message: messageValue,
     );
-  }
-}
-
-// Placeholder expression implementations
-// These should be replaced with actual dartblock_code implementations
-
-class _StringLiteralExpression extends DartBlockAlgebraicExpression {
-  final String value;
-
-  _StringLiteralExpression(this.value);
-
-  @override
-  dynamic evaluate() => value;
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'type': 'StringLiteral',
-      'value': value,
-    };
-  }
-}
-
-class _BoolLiteralExpression extends DartBlockAlgebraicExpression {
-  final bool value;
-
-  _BoolLiteralExpression(this.value);
-
-  @override
-  dynamic evaluate() => value;
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      'type': 'BoolLiteral',
-      'value': value,
-    };
   }
 }
