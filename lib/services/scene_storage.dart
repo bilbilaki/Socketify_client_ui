@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/scene/data_model.dart';
+import '../dartblock/dart_block_types.dart';
 
 /// Metadata for a saved scene
 class SceneMeta {
@@ -234,6 +235,7 @@ extension SceneNodeSerialization on SceneNode {
         ...base,
         'type': 'leaf',
         'widgetType': leaf.id.split('_').first, // e.g., 'widget', 'form1', etc.
+        'onInteractionScript': leaf.onInteractionScript?.toJson(),
       };
     } else if (this is SceneContainerNode) {
       final container = this as SceneContainerNode;
@@ -302,6 +304,14 @@ class SceneNodeDeserializer {
     }
 
     if (type == 'leaf') {
+      // Deserialize onInteractionScript if present
+      DartBlockProgram? onInteractionScript;
+      if (json['onInteractionScript'] != null) {
+        onInteractionScript = DartBlockProgram.fromJson(
+          json['onInteractionScript'] as Map<String, dynamic>,
+        );
+      }
+
       return SceneLeafNode(
         id: id,
         name: name,
@@ -309,6 +319,7 @@ class SceneNodeDeserializer {
         selected: false, // Don't restore selection
         localRect: localRect,
         builder: (ctx) => leafWidgetBuilder(ctx, json),
+        onInteractionScript: onInteractionScript,
       );
     } else if (type == 'container') {
       final containerType = SceneContainerType.values.firstWhere(
