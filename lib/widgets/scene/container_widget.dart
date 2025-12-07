@@ -8,6 +8,8 @@ import 'tree_renderer.dart';
 /// A widget that renders a SceneContainerNode with a styled header and body,
 /// similar to StatementWidget in DartBlock.
 class ContainerWidget extends ConsumerWidget {
+  static const double _cardElevation = 8.0;
+  
   final SceneContainerNode container;
 
   const ContainerWidget({super.key, required this.container});
@@ -55,7 +57,7 @@ class ContainerWidget extends ConsumerWidget {
     final isSelected = container.selected;
 
     return Card(
-      elevation: 8,
+      elevation: _cardElevation,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
@@ -123,6 +125,9 @@ class ContainerWidget extends ConsumerWidget {
 /// A ListView-like widget for rendering and managing children of a SceneContainerNode,
 /// adapted from StatementListView logic in DartBlock.
 class ContainerChildrenListView extends ConsumerWidget {
+  static const double _dropTargetActiveHeight = 20.0;
+  static const double _dropTargetInactiveHeight = 8.0;
+  
   final SceneContainerNode container;
 
   const ContainerChildrenListView({super.key, required this.container});
@@ -166,11 +171,7 @@ class ContainerChildrenListView extends ConsumerWidget {
 
   Widget _buildEmptyPlaceholder(BuildContext context, WidgetRef ref) {
     return DragTarget<String>(
-      onWillAccept: (data) {
-        if (data == null || data == container.id) return false;
-        // Prevent dropping a container onto its own descendants
-        return !_isDescendantOf(data, container);
-      },
+      onWillAccept: (data) => _canAcceptDrop(data, container.id),
       onAccept: (nodeId) {
         final controller = ref.read(sceneControllerProvider.notifier);
         controller.moveNodeToContainer(
@@ -215,16 +216,7 @@ class ContainerChildrenListView extends ConsumerWidget {
     // Build the drag target wrapper for dropping items
     return DragTarget<String>(
       key: ValueKey(childNode.id),
-      onWillAccept: (data) {
-        if (data == null || data == childNode.id) return false;
-        
-        // Prevent dropping a container onto its own descendants (circular reference check)
-        if (childNode is SceneContainerNode) {
-          return !_isDescendantOf(data, childNode);
-        }
-        
-        return true;
-      },
+      onWillAccept: (data) => _canAcceptDrop(data, childNode.id, childNode),
       onAccept: (nodeId) {
         final controller = ref.read(sceneControllerProvider.notifier);
         controller.moveNodeToContainer(
@@ -286,11 +278,7 @@ class ContainerChildrenListView extends ConsumerWidget {
 
   Widget _buildEndDropTarget(BuildContext context, WidgetRef ref) {
     return DragTarget<String>(
-      onWillAccept: (data) {
-        if (data == null || data == container.id) return false;
-        // Prevent dropping a container onto its own descendants
-        return !_isDescendantOf(data, container);
-      },
+      onWillAccept: (data) => _canAcceptDrop(data, container.id),
       onAccept: (nodeId) {
         final controller = ref.read(sceneControllerProvider.notifier);
         controller.moveNodeToContainer(
@@ -303,7 +291,7 @@ class ContainerChildrenListView extends ConsumerWidget {
         final isActive = candidateData.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          height: isActive ? 20 : 8,
+          height: isActive ? _dropTargetActiveHeight : _dropTargetInactiveHeight,
           margin: const EdgeInsets.symmetric(vertical: 2),
           decoration: BoxDecoration(
             color: isActive
@@ -344,6 +332,20 @@ class ContainerChildrenListView extends ConsumerWidget {
       targetContainerId: container.id,
       newIndex: newIndex,
     );
+  }
+
+  /// Check if a drag operation can be accepted
+  /// Prevents self-drops and circular references
+  bool _canAcceptDrop(String? data, String targetId, [SceneNode? targetNode]) {
+    if (data == null || data == targetId) return false;
+    
+    // If target is a container, check for circular references
+    if (targetNode is SceneContainerNode) {
+      return !_isDescendantOf(data, targetNode);
+    }
+    
+    // For non-container targets, use container's descendant check
+    return !_isDescendantOf(data, container);
   }
 
   /// Check if nodeId is a descendant of the given container (to prevent circular references)
