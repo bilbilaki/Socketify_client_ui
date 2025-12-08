@@ -1,9 +1,12 @@
+import 'package:client_ui/services/terminal_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
+import 'package:uuid/uuid.dart';
 import '../providers/app_providers.dart';
 import '../models/server_config.dart';
 import 'add_edit_server_page.dart';
+import '../widgets/terminal_tab_session.dart';
 
 class HostsServersPage extends ConsumerWidget {
   const HostsServersPage({Key? key}) : super(key: key);
@@ -11,7 +14,9 @@ class HostsServersPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final serversAsync = ref.watch(serverListProvider);
-
+    final sessions = ref.read(sessionsProvider);
+    bool sesexist = sessions.isNotEmpty;
+    final Sessionsnum = sessions.length;
     return Scaffold(
       body: Column(
         children: [
@@ -32,55 +37,83 @@ class HostsServersPage extends ConsumerWidget {
                   onPressed: () => _navigateToAddServer(context, ref),
                 ),
                 SizedBox(width: 1.w),
-                _buildActionButton(
-                  context: context,
-                  icon: Icons.edit,
-                  label: 'Edit',
-                  color: Colors.blue,
-                  onPressed:
-                      serversAsync.hasValue && serversAsync.value!.isNotEmpty
-                      ? () => _showEditDialog(context, ref, serversAsync.value!)
-                      : null,
-                ),
-                SizedBox(width: 1.w),
-                _buildActionButton(
-                  context: context,
-                  icon: Icons.content_copy,
-                  label: 'Duplicate',
-                  color: Colors.orange,
-                  onPressed:
-                      serversAsync.hasValue && serversAsync.value!.isNotEmpty
-                      ? () => _showDuplicateDialog(
-                          context,
-                          ref,
-                          serversAsync.value!,
-                        )
-                      : null,
-                ),
-                SizedBox(width: 1.w),
-                _buildActionButton(
-                  context: context,
-                  icon: Icons.drive_file_rename_outline,
-                  label: 'Rename',
-                  color: Colors.purple,
-                  onPressed:
-                      serversAsync.hasValue && serversAsync.value!.isNotEmpty
-                      ? () =>
-                            _showRenameDialog(context, ref, serversAsync.value!)
-                      : null,
-                ),
-                SizedBox(width: 1.w),
-                _buildActionButton(
-                  context: context,
-                  icon: Icons.delete,
-                  label: 'Remove',
-                  color: Colors.red,
-                  onPressed:
-                      serversAsync.hasValue && serversAsync.value!.isNotEmpty
-                      ? () =>
-                            _showDeleteDialog(context, ref, serversAsync.value!)
-                      : null,
-                ),
+                if (sesexist)_buildActionButton(context: context, icon: Icons.list_alt, label: "$Sessionsnum", color: Color.fromARGB(255, 107, 30, 158), onPressed: () =>    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => TerminalScreen()),
+    )),
+
+                // _buildActionButton(
+                //   context: context,
+                //   icon: Icons.edit,
+                //   label: 'Edit',
+                //   color: Colors.blue,
+                //   onPressed:
+                //       serversAsync.hasValue && serversAsync.value!.isNotEmpty
+                //       ? () => _showEditDialog(context, ref, serversAsync.value!)
+                //       : null,
+                // ),
+                // SizedBox(width: 1.w),
+                // _buildActionButton(
+                //   context: context,
+                //   icon: Icons.content_copy,
+                //   label: 'Duplicate',
+                //   color: Colors.orange,
+                //   onPressed:
+                //       serversAsync.hasValue && serversAsync.value!.isNotEmpty
+                //       ? () => _showDuplicateDialog(
+                //           context,
+                //           ref,
+                //           serversAsync.value!,
+                //         )
+                //       : null,
+                // ),
+                // SizedBox(width: 1.w),
+                // _buildActionButton(
+                //   context: context,
+                //   icon: Icons.drive_file_rename_outline,
+                //   label: 'Rename',
+                //   color: Colors.purple,
+                //   onPressed:
+                //       serversAsync.hasValue && serversAsync.value!.isNotEmpty
+                //       ? () =>
+                //             _showRenameDialog(context, ref, serversAsync.value!)
+                //       : null,
+                // ),
+                // SizedBox(width: 1.w),
+                // _buildActionButton(
+                //   context: context,
+                //   icon: Icons.delete,
+                //   label: 'Remove',
+                //   color: Colors.red,
+                //   onPressed:
+                //       serversAsync.hasValue && serversAsync.value!.isNotEmpty
+                //       ? () =>
+                //             _showDeleteDialog(context, ref, serversAsync.value!)
+                //       : null,
+                // ),
+                // SizedBox(width: 1.w),
+                // _buildActionButton(
+                //   context: context,
+                //   icon: Icons.security,
+                //   label: 'Connect SSH',
+                //   color: Colors.teal,
+                //   onPressed:
+                //       serversAsync.hasValue && serversAsync.value!.isNotEmpty
+                //       ? () =>
+                //             _connectUsingSsh(context, ref, serversAsync.value!)
+                //       : null,
+                // ),
+                // SizedBox(width: 1.w),
+                // _buildActionButton(
+                //   context: context,
+                //   icon: Icons.cloud,
+                //   label: 'Connect WS',
+                //   color: Colors.indigo,
+                //   onPressed:
+                //       serversAsync.hasValue && serversAsync.value!.isNotEmpty
+                //       ? () => _connectUsingWs(context, ref, serversAsync.value!)
+                //       : null,
+                // ),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.refresh),
@@ -197,7 +230,7 @@ class HostsServersPage extends ConsumerWidget {
       margin: EdgeInsets.only(bottom: 1.h),
       elevation: 2,
       child: InkWell(
-        onTap: () => _navigateToEditServer(context, ref, server),
+        onTap: () => _connectUsingSsh(context, ref, server),
         child: Padding(
           padding: EdgeInsets.all(2.w),
           child: Row(
@@ -549,5 +582,61 @@ class HostsServersPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _connectUsingSsh(
+    BuildContext context,
+    WidgetRef ref,
+    ServerConfig servers,
+  ) async {
+    print('=== SSH Connection DEBUG ===');
+    print('Connecting to: ${servers.address}:${servers.port}');
+    print('Username: ${servers.username}');
+
+    // Create a unique session ID (not using server ID to allow multiple connections to same server)
+    final sessionId = const Uuid().v4();
+    final term = TerminalSession(
+      sessionId,
+      servers.address,
+      servers.port,
+      servers.username,
+      servers.password ?? "",
+    );
+
+    print('TerminalSession created with ID: ${term.id}');
+    print('Terminal object: ${term.terminal}');
+
+    try {
+      await term.connect();
+      print('Connection successful');
+      print('Connected status: ${term.isConnected}');
+    } catch (e) {
+      print('Connection error: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Connection failed: $e')));
+      return;
+    }
+
+    ref.read(sessionsProvider.notifier).addSession(term);
+    print('Session added to provider');
+
+    final sessions = ref.read(sessionsProvider);
+    print('Sessions in provider after adding: ${sessions.length}');
+
+    // Update the active session index to the newly added session
+    final newSessionIndex = sessions.length - 1;
+    ref.read(activeSessionIndexProvider.notifier).state = newSessionIndex;
+    print('Active session index set to: $newSessionIndex');
+
+    // Navigate to terminal screen
+    if (!context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => TerminalScreen()),
+    );
+    print('Navigated to TerminalScreen');
+    print('============================');
   }
 }

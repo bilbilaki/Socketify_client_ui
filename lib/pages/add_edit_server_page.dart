@@ -423,7 +423,7 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
           : _chainConnectionController.text.trim(),
       createdAt: widget.server?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
-      connectionType: _connectionTypes[_selectedConnectionType]!,
+      connectionType: "ssh",
       isOnline: widget.server?.isOnline,
       osVersion: widget.server?.osVersion,
     );

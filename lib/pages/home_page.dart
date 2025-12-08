@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 import '../providers/app_providers.dart';
 import 'hosts_servers_page.dart';
+import 'ssh_key_management_page.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -176,7 +177,7 @@ class HomePage extends ConsumerWidget {
       case 0:
         return const HostsServersPage();
       case 1:
-        return _buildPlaceholderPage('KeyStore', Icons.vpn_key);
+        return SshKeyManagementPage();
       case 2:
         return _buildPlaceholderPage('SFTP', Icons.folder);
       case 3:

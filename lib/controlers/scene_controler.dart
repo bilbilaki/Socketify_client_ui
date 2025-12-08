@@ -636,6 +636,7 @@ class SceneController extends StateNotifier<SceneControllerState> {
   }
 
   /// Execute interaction script for a node
+  /// Uses SocketifyExecutor/SocketifyArbiter to provide access to native functions
   Future<void> executeNodeInteraction(
     String nodeId,
     Widget Function(BuildContext, Map<String, dynamic>) leafWidgetBuilder,
@@ -645,18 +646,21 @@ class SceneController extends StateNotifier<SceneControllerState> {
       return;
     }
 
-    // Import the executor here to avoid circular dependencies
-    final executor = _createExecutor(leafWidgetBuilder, node.onInteractionScript!);
+    // Create executor with SocketifyArbiter for native function access
+    final executor = _createExecutor(
+      leafWidgetBuilder,
+      node.onInteractionScript!,
+    );
     await executor.execute();
   }
 
   /// Create a DartBlock executor with SceneController context
+  /// Returns SocketifyExecutor which uses SocketifyArbiter internally
+  /// to provide access to all registered native functions (setText, setProperty, etc.)
   dynamic _createExecutor(
     Widget Function(BuildContext, Map<String, dynamic>) leafWidgetBuilder,
     dynamic program,
   ) {
-    // Import SocketifyExecutor to provide SceneController context
-    // Note: We import here to avoid circular dependencies
     return SocketifyExecutor(
       sceneController: this,
       program: program,

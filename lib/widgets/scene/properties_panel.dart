@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dartblock_code/widgets/dartblock_editor.dart' show DartBlockEditor;
+import 'package:dartblock_code/widgets/dartblock_editor.dart'
+    show DartBlockEditor;
 
 import '../../controlers/scene_controler.dart';
 import '../../models/scene/data_model.dart';
@@ -11,10 +12,7 @@ import '../../dartblock/socketify_executor.dart';
 class PropertiesPanel extends ConsumerStatefulWidget {
   final SceneNode node;
 
-  const PropertiesPanel({
-    super.key,
-    required this.node,
-  });
+  const PropertiesPanel({super.key, required this.node});
 
   @override
   ConsumerState<PropertiesPanel> createState() => _PropertiesPanelState();
@@ -27,7 +25,7 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize with existing script or create new empty program
     // DartBlockProgram.init takes List<Statement> and List<DartBlockCustomFunction>
     if (widget.node is SceneLeafNode) {
@@ -58,7 +56,9 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.blue.shade50,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: Row(
               children: [
@@ -102,35 +102,35 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Basic Properties Section
-                  _buildSection(
-                    'Basic Properties',
-                    [
-                      _buildPropertyRow('Name', widget.node.name),
-                      _buildPropertyRow('ID', widget.node.id),
-                      _buildPropertyRow('Type', isLeafNode ? 'Leaf Node' : 'Container Node'),
-                      _buildPropertyRow('Locked', widget.node.locked ? 'Yes' : 'No'),
-                    ],
-                  ),
+                  _buildSection('Basic Properties', [
+                    _buildPropertyRow('Name', widget.node.name),
+                    _buildPropertyRow('ID', widget.node.id),
+                    _buildPropertyRow(
+                      'Type',
+                      isLeafNode ? 'Leaf Node' : 'Container Node',
+                    ),
+                    _buildPropertyRow(
+                      'Locked',
+                      widget.node.locked ? 'Yes' : 'No',
+                    ),
+                  ]),
 
                   const SizedBox(height: 24),
 
                   // Interaction Script Section (only for leaf nodes)
                   if (isLeafNode) ...[
-                    _buildSection(
-                      'Interaction Script',
-                      [
-                        Text(
-                          'Define what happens when the user interacts with this element.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
+                    _buildSection('Interaction Script', [
+                      Text(
+                        'Define what happens when the user interacts with this element.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey.shade600,
                         ),
-                        const SizedBox(height: 16),
-                        
-                        // DartBlock Editor Placeholder
-                        _buildDartBlockEditorPlaceholder(context, controller),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // DartBlock Editor Placeholder
+                      _buildDartBlockEditorPlaceholder(context, controller),
+                    ]),
                   ],
                 ],
               ),
@@ -153,7 +153,9 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  onPressed: _hasChanges ? () => _saveChanges(controller) : null,
+                  onPressed: _hasChanges
+                      ? () => _saveChanges(controller)
+                      : null,
                   child: const Text('Save'),
                 ),
                 if (isLeafNode) ...[
@@ -182,10 +184,7 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         ...children,
@@ -205,9 +204,7 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
           ),
-          Expanded(
-            child: Text(value),
-          ),
+          Expanded(child: Text(value)),
         ],
       ),
     );
@@ -218,9 +215,13 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
     SceneController controller,
   ) {
     // TODO: Integrate real DartBlockEditor widget from dartblock_code package
-    // Example usage:
+    // When ready, replace placeholder with:
+    //
+    // import '../../dartblock/native_functions.dart';
+    //
     // return DartBlockEditor(
     //   program: _program,
+    //   nativeFunctions: SocketifyNativeFunctions.all,  // <-- Register UI functions
     //   canChange: true,
     //   canDelete: true,
     //   canReorder: true,
@@ -232,7 +233,10 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
     //     });
     //   },
     // );
-    
+    //
+    // Users will then see "setText", "setProperty", "setVisible", etc.
+    // in the Functions toolbox and can drag "Call Function" blocks.
+
     // Placeholder for now
     return Container(
       padding: const EdgeInsets.all(16),
@@ -250,10 +254,7 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
               const SizedBox(width: 8),
               const Text(
                 'DartBlock Editor',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -271,12 +272,21 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
             ),
           ),
           const SizedBox(height: 8),
-          _buildBlockExample('Print', 'Print a message to console'),
-          _buildBlockExample('Set Text', 'Change the text of a node'),
-          _buildBlockExample('Set Property', 'Update any node property'),
-          _buildBlockExample('Set Visible', 'Show or hide a node'),
-          _buildBlockExample('Navigate', 'Navigate to another scene'),
-          _buildBlockExample('If/Else', 'Conditional logic'),
+          _buildBlockExample('printDebug', 'Print a message to console'),
+          _buildBlockExample('setText', 'Change the text of a node'),
+          _buildBlockExample('setProperty', 'Update any node property'),
+          _buildBlockExample('setVisible', 'Show or hide a node'),
+          _buildBlockExample('getNodeProperty', 'Get a property from a node'),
+          _buildBlockExample('navigateToScene', 'Navigate to another scene'),
+          const SizedBox(height: 8),
+          Text(
+            'Note: Use "Call Function" block and select from the dropdown.',
+            style: TextStyle(
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+              color: Colors.grey.shade600,
+            ),
+          ),
           const SizedBox(height: 16),
           Text(
             'Environment Variables Available:',
@@ -341,7 +351,10 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
         children: [
           _buildVariableItem('sceneName', controller.currentSceneName),
           _buildVariableItem('sceneId', controller.currentSceneId ?? 'null'),
-          _buildVariableItem('topLevelNodeCount', '${controller.topLevelNodes.length}'),
+          _buildVariableItem(
+            'topLevelNodeCount',
+            '${controller.topLevelNodes.length}',
+          ),
         ],
       ),
     );
@@ -378,16 +391,16 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
   void _saveChanges(SceneController controller) {
     if (widget.node is SceneLeafNode) {
       final leaf = widget.node as SceneLeafNode;
-      
+
       // Update via SceneController to ensure proper state management
       controller.updateNodeInteractionScript(leaf.id, _program);
-      
+
       setState(() {
         _hasChanges = false;
       });
 
       Navigator.of(context).pop();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Interaction script saved successfully'),
@@ -402,10 +415,11 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
       // Create executor with SceneController context
       final executor = SocketifyExecutor(
         sceneController: controller,
+        program: _program,
       );
 
       // Execute the program
-      await executor.execute(_program);
+      await executor.execute();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -20,7 +20,7 @@ class ServerConfig {
   final DateTime updatedAt;
   final bool? isOnline;
   final String? osVersion;
-  final ConnectionType connectionType;
+  final String? connectionType;
 
   ServerConfig({
     required this.id,
@@ -64,7 +64,7 @@ class ServerConfig {
     DateTime? updatedAt,
     bool? isOnline,
     String? osVersion,
-    ConnectionType? connectionType,
+    String? connectionType,
   }) {
     return ServerConfig(
       id: id ?? this.id,

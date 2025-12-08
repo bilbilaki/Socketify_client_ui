@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:uuid/uuid.dart';
 import '../models/server_config.dart';
+import '../models/ssh_key_model.dart';
 import '../services/storage_service.dart';
 import '../services/terminal_session.dart';
 
@@ -76,8 +77,14 @@ class SessionsListNotifier extends StateNotifier<List<TerminalSession>> {
     state = [...state, session];
   }
 
-  void removeSession(String sessionId) {
+  Future<void> removeSession(String sessionId) async {
+    final sessions = state.where((s) => s.id == sessionId).toList();
+    if (sessions.isNotEmpty) {
+      print('Disposing session: $sessionId');
+      await sessions.first.dispose();
+    }
     state = state.where((s) => s.id != sessionId).toList();
+    print('Sessions remaining: ${state.length}');
   }
 
   void updateSession(String sessionId, TerminalSession updatedSession) {
@@ -93,3 +100,32 @@ final sessionsProvider =
 
 // Active session index provider
 final activeSessionIndexProvider = StateProvider<int>((ref) => 0);
+
+// SSH Keys list provider
+class SshKeysListNotifier extends StateNotifier<List<SshKey>> {
+  SshKeysListNotifier() : super([]);
+
+  void addKey(SshKey key) {
+    state = [...state, key];
+  }
+
+  void removeKey(String keyId) {
+    state = state.where((k) => k.id != keyId).toList();
+  }
+
+  void updateKey(String keyId, SshKey updatedKey) {
+    state = state.map((k) => k.id == keyId ? updatedKey : k).toList();
+  }
+
+  void setKeys(List<SshKey> keys) {
+    state = keys;
+  }
+}
+
+final sshKeysProvider =
+    StateNotifierProvider<SshKeysListNotifier, List<SshKey>>((ref) {
+      return SshKeysListNotifier();
+    });
+
+// Selected SSH key for server provider
+final selectedSshKeyProvider = StateProvider<String?>((ref) => null);

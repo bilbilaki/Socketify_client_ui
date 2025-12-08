@@ -2,18 +2,18 @@
 /// This file provides exports from the dartblock_code package for use in Socketify
 
 // Core DartBlock types
-export 'package:dartblock_code/core/dartblock_program.dart' 
+export 'package:dartblock_code/core/dartblock_program.dart'
     show DartBlockProgram;
-export 'package:dartblock_code/core/dartblock_executor.dart' 
+export 'package:dartblock_code/core/dartblock_executor.dart'
     show DartBlockExecutor, DartBlockArbiter;
 
 // Statement types
-export 'package:dartblock_code/models/statement.dart' 
+export 'package:dartblock_code/models/statement.dart'
     show Statement, StatementType, DartBlockTypedLanguage;
 
 // Value and expression types
-export 'package:dartblock_code/models/dartblock_value.dart' 
-    show 
+export 'package:dartblock_code/models/dartblock_value.dart'
+    show
         DartBlockValue,
         DartBlockDataType,
         DartBlockVariableDefinition,
@@ -24,5 +24,10 @@ export 'package:dartblock_code/models/dartblock_value.dart'
         DartBlockDynamicValue;
 
 // Function types
-export 'package:dartblock_code/models/function.dart' 
-    show DartBlockFunction, DartBlockCustomFunction;
+export 'package:dartblock_code/models/function.dart'
+    show
+        DartBlockFunction,
+        DartBlockCustomFunction,
+        DartBlockNativeFunction,
+        DartBlockNativeFunctionCategory,
+        DartBlockNativeFunctionType;

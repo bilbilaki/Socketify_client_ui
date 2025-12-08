@@ -3,51 +3,46 @@ import 'package:flutter/material.dart';
 import '../controlers/scene_controler.dart';
 import '../models/scene/data_model.dart';
 import 'dart_block_types.dart';
+import 'socketify_arbiter.dart';
 
 /// Custom executor that bridges DartBlock with Socketify SceneController
-/// Note: DartBlockExecutor from dartblock_code takes a DartBlockProgram in constructor,
-/// so we compose it instead of extending it directly
+/// This is a simplified wrapper around SocketifyArbiter that provides
+/// the execution interface used throughout the Socketify application.
 class SocketifyExecutor {
   final SceneController sceneController;
   final Widget Function(BuildContext, Map<String, dynamic>)? leafWidgetBuilder;
-  final DartBlockExecutor _executor;
+  final SocketifyArbiter _arbiter;
 
   SocketifyExecutor({
     required this.sceneController,
     required DartBlockProgram program,
     this.leafWidgetBuilder,
-  }) : _executor = DartBlockExecutor(program);
+  }) : _arbiter = SocketifyArbiter(
+         program: program,
+         sceneController: sceneController,
+       );
 
   /// Execute the program with SceneController context
+  /// The program runs using SocketifyArbiter which provides access to
+  /// all registered native functions (setText, setProperty, etc.)
   Future<void> execute() async {
-    // TODO: Design proper execution context mechanism for Socketify statements
-    // Current architecture limitation: Socketify-specific statements (SetTextStatement, etc.)
-    // receive SceneController directly, but dartblock_code's standard statements use
-    // DartBlockArbiter's environment which only supports primitive DartBlockValue types.
-    // 
-    // Potential solutions to explore:
-    // 1. Extend DartBlockValue to support custom object types
-    // 2. Use dependency injection pattern for SceneController
-    // 3. Create custom DartBlockArbiter subclass with SceneController access
-    // 4. Implement callback-based architecture for Socketify operations
-    //
-    // See: https://github.com/aryobarzan/dartblock for DartBlockArbiter design
-    
-    // Execute the program
-    await _executor.execute();
+    await _arbiter.execute();
   }
 
   /// Get the console output from execution
-  List<String> get consoleOutput => _executor.consoleOutput;
+  List<String> get consoleOutput => _arbiter.consoleOutput;
 
   /// Get any exception thrown during execution
-  dynamic get thrownException => _executor.thrownException;
+  dynamic get thrownException => _arbiter.thrownException;
 
   /// Create a variable for a specific node
   DartBlockVariableDefinition createVariableForNode(String nodeId) {
     final node = sceneController.getNode(nodeId);
     if (node == null) {
-      return DartBlockVariableDefinition('node_$nodeId', DartBlockDataType.stringType);
+      return DartBlockVariableDefinition(
+        'node_$nodeId',
+        DartBlockDataType.stringType,
+      );
     }
 
     return DartBlockVariableDefinition(

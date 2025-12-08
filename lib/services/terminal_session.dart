@@ -25,6 +25,9 @@ class TerminalSession {
   // Connection Status
   bool isConnected = false;
 
+  // Reconnection flag
+  bool _isReconnecting = false;
+
   TerminalSession(this.id, this.host, this.port, this.username, this.password) {
     terminal = Terminal(maxLines: 10000);
   }
@@ -36,7 +39,7 @@ class TerminalSession {
       final socket = await SSHSocket.connect(
         host,
         port,
-        timeout: Duration(seconds: 10),
+        timeout: Duration(seconds: 20),
       );
 
       _client = SSHClient(
@@ -47,6 +50,7 @@ class TerminalSession {
 
       terminal.write('Connected.\r\n');
       isConnected = true;
+      _isReconnecting = false;
 
       // Start the shell with specific dimensions
       _session = await _client!.shell(
@@ -72,6 +76,12 @@ class TerminalSession {
       // 2. Pipe Terminal Input -> SSH
       terminal.onOutput = (input) {
         if (_client != null && !_client!.isClosed && _session != null) {
+          // Check if user pressed Enter while disconnected
+          if (!isConnected && input.trim().isEmpty) {
+            _attemptReconnect();
+            return;
+          }
+
           _session!.write(utf8.encode(input));
         }
       };
@@ -106,6 +116,31 @@ class TerminalSession {
     terminal.write(
       '\r\n\x1b[31m⚠️ Connection Lost. Press Enter to reconnect...\x1b[0m\r\n',
     );
+  }
+
+  Future<void> _attemptReconnect() async {
+    if (_isReconnecting) {
+      terminal.write('Reconnection in progress...\r\n');
+      return;
+    }
+
+    _isReconnecting = true;
+    terminal.write('\r\nAttempting to reconnect...\r\n');
+
+    try {
+      // Clean up old connection
+      await dispose();
+
+      // Attempt new connection
+      await connect();
+      terminal.write('✓ Reconnected successfully!\r\n');
+    } catch (e) {
+      _isReconnecting = false;
+      terminal.write(
+        '\r\n\x1b[31m✗ Reconnection failed: $e\r\nPress Enter to try again...\x1b[0m\r\n',
+      );
+      isConnected = false;
+    }
   }
 
   Future<void> dispose() async {

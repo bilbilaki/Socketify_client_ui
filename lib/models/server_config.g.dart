@@ -23,7 +23,7 @@ ServerConfig _$ServerConfigFromJson(Map<String, dynamic> json) => ServerConfig(
   updatedAt: DateTime.parse(json['updatedAt'] as String),
   isOnline: json['isOnline'] as bool?,
   osVersion: json['osVersion'] as String?,
-  connectionType: $enumDecode(_$ConnectionTypeEnumMap, json['connectionType']),
+  connectionType: json['connectionType'] as String?,
 );
 
 Map<String, dynamic> _$ServerConfigToJson(ServerConfig instance) =>
@@ -44,14 +44,5 @@ Map<String, dynamic> _$ServerConfigToJson(ServerConfig instance) =>
       'updatedAt': instance.updatedAt.toIso8601String(),
       'isOnline': instance.isOnline,
       'osVersion': instance.osVersion,
-      'connectionType': _$ConnectionTypeEnumMap[instance.connectionType]!,
+      'connectionType': instance.connectionType,
     };
-
-const _$ConnectionTypeEnumMap = {
-  ConnectionType.ssh: 'ssh',
-  ConnectionType.telnet: 'telnet',
-  ConnectionType.rdp: 'rdp',
-  ConnectionType.ws: 'ws',
-  ConnectionType.sftp: 'sftp',
-  ConnectionType.smb: 'smb',
-};
