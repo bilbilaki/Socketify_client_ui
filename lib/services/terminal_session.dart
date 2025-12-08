@@ -9,6 +9,7 @@ class TerminalSession {
   final int port;
   final String username;
   final String password;
+  final String privKey;
 
   // The UI Engine for this specific tab
   late final Terminal terminal;
@@ -27,8 +28,8 @@ class TerminalSession {
 
   // Reconnection flag
   bool _isReconnecting = false;
-
-  TerminalSession(this.id, this.host, this.port, this.username, this.password) {
+  bool authenticated = false;
+  TerminalSession(this.id, this.host, this.port, this.username, this.password, this.privKey) {
     terminal = Terminal(maxLines: 10000);
   }
 
@@ -45,7 +46,23 @@ class TerminalSession {
       _client = SSHClient(
         socket,
         username: username,
-        onPasswordRequest: () => password,
+        onChangePasswordRequest: (prompt) {
+          // TODO showing dialog to getting new value from user
+        },
+        onUserauthBanner: (banner) {
+          ///TODO  showing it in dialg to user
+        },
+        onAuthenticated: () => authenticated = true,
+
+        ///TODO leter should I add selection of this value in settings like page =>
+        keepAliveInterval: const Duration(seconds: 35),
+        identities: [...SSHKeyPair.fromPem(privKey)],
+
+        onPasswordRequest: () {
+          ///TODO if user not added a password showing a dialog for getting passwrd
+
+          return password;
+        },
       );
 
       terminal.write('Connected.\r\n');

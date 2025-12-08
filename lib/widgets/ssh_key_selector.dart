@@ -19,7 +19,70 @@ class SshKeySelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sshKeys = ref.watch(sshKeysProvider);
+    final sshKeysAsync = ref.watch(sshKeysProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'SSH Key',
+          style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 0.5.h),
+        sshKeysAsync.when(
+          loading: () => _buildLoadingSelector(),
+          error: (error, stack) => _buildErrorSelector(context, error),
+          data: (sshKeys) => _buildSelector(context, ref, sshKeys),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingSelector() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.2.h),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.grey.shade50,
+      ),
+      child: Row(
+        children: [
+          const CircularProgressIndicator(),
+          SizedBox(width: 1.5.w),
+          Text(
+            'Loading keys...',
+            style: TextStyle(fontSize: 12.sp, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorSelector(BuildContext context, Object error) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.2.h),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.red),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.red.shade50,
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error, color: Colors.red, size: 18.sp),
+          SizedBox(width: 1.5.w),
+          Expanded(
+            child: Text(
+              'Error loading keys: ${error.toString()}',
+              style: TextStyle(fontSize: 12.sp, color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelector(BuildContext context, WidgetRef ref, List<SshKey> sshKeys) {
     final selectedKey = selectedKeyId != null
         ? sshKeys.cast<SshKey?>().firstWhere(
             (k) => k?.id == selectedKeyId,
@@ -30,11 +93,6 @@ class SshKeySelector extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'SSH Key',
-          style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 0.5.h),
         GestureDetector(
           onTap: () => _showKeySelectionDialog(context, ref, sshKeys),
           child: Container(

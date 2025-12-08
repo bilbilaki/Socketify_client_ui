@@ -601,6 +601,7 @@ class HostsServersPage extends ConsumerWidget {
       servers.port,
       servers.username,
       servers.password ?? "",
+      servers.privKey??''
     );
 
     print('TerminalSession created with ID: ${term.id}');

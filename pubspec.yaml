@@ -77,6 +77,8 @@ dependencies:
   cryptography: ^2.9.0
   pointycastle: ^3.9.1
   crypto: ^3.0.7
+  ssh_key: ^1.0.0
+  ffi: ^2.1.4
 
 
 
@@ -86,7 +88,8 @@ dependency_overrides:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
+  ffigen: ^20.1.1
+
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -98,6 +101,26 @@ dev_dependencies:
   build_runner: ^2.4.14
   json_serializable: ^6.9.2
   riverpod_generator: ^3.0.3
+ffigen:
+ name: SSHKeygenLibrary
+
+# Description for the generated file
+ description: Bindings for SSHKeygen Go shared library.
+
+# Path where the generated Dart file will be saved
+ output: 'lib/bindings/generated_bindings_for_sshkeygen.dart'
+
+# The C header files to scan
+ headers:
+   entry-points:
+     - 'native/sshKeyGen.h'
+   include-directives:
+     - 'native/sshKeyGen.h'
+
+# Comments settings
+ comments:
+   style: any
+   length: full
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

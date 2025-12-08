@@ -102,30 +102,77 @@ final sessionsProvider =
 final activeSessionIndexProvider = StateProvider<int>((ref) => 0);
 
 // SSH Keys list provider
-class SshKeysListNotifier extends StateNotifier<List<SshKey>> {
-  SshKeysListNotifier() : super([]);
+// SSH Keys list state notifier (updated to be persistent and async like ServerListNotifier)
+class SshKeysListNotifier extends StateNotifier<AsyncValue<List<SshKey>>> {
+  final StorageService _storageService;
 
-  void addKey(SshKey key) {
-    state = [...state, key];
+  SshKeysListNotifier(this._storageService) : super(const AsyncValue.loading()) {
+    loadKeys();
   }
 
-  void removeKey(String keyId) {
-    state = state.where((k) => k.id != keyId).toList();
+  Future<void> loadKeys() async {
+    state = const AsyncValue.loading();
+    try {
+      final keys = await _storageService.loadKeys();
+      state = AsyncValue.data(keys);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
   }
 
-  void updateKey(String keyId, SshKey updatedKey) {
-    state = state.map((k) => k.id == keyId ? updatedKey : k).toList();
+  Future<void> addKey(SshKey key) async {
+    await _storageService.addKey(key);
+    await loadKeys(); // Reload to ensure state is updated
   }
 
-  void setKeys(List<SshKey> keys) {
-    state = keys;
+  Future<void> updateKey(SshKey key) async {
+    await _storageService.updateKey(key);
+    await loadKeys();
+  }
+
+  Future<void> removeKey(String id) async {
+    await _storageService.removeKey(id);
+    await loadKeys();
+  }
+
+  Future<void> duplicateKey(String id) async {
+    final keys = state.value ?? [];
+    final original = keys.firstWhere((k) => k.id == id);
+    final duplicate = original.copyWith(
+      id: const Uuid().v4(),
+      name: '${original.name} (Copy)',
+      createdAt: DateTime.now(),
+    );
+    await addKey(duplicate);
+  }
+
+  Future<void> clearAllKeys() async {
+    await _storageService.clearAllKeys();
+    state = AsyncValue.data([]); // Clear in-memory state immediately
+  }
+
+  Future<SshKey?> getKeyById(String id) async {
+    final keys = state.value ?? [];
+    return keys.where((key) => key.id == id).cast<SshKey?>().firstWhere(
+      (element) => true,
+      orElse: () => null,
+    );
+  }
+
+  Future<SshKey?> getKeyByName(String name) async {
+    final keys = state.value ?? [];
+    return keys.where((key) => key.name == name).cast<SshKey?>().firstWhere(
+      (element) => true,
+      orElse: () => null,
+    );
   }
 }
 
+// SSH Keys provider (updated to use StateNotifierProvider with AsyncValue)
 final sshKeysProvider =
-    StateNotifierProvider<SshKeysListNotifier, List<SshKey>>((ref) {
-      return SshKeysListNotifier();
+    StateNotifierProvider<SshKeysListNotifier, AsyncValue<List<SshKey>>>((ref) {
+      final storageService = ref.watch(storageServiceProvider);
+      return SshKeysListNotifier(storageService);
     });
 
-// Selected SSH key for server provider
-final selectedSshKeyProvider = StateProvider<String?>((ref) => null);
+// ... (Keep selectedSshKeyProvider unchanged)

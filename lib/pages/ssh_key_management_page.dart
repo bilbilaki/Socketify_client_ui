@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,13 +19,13 @@ class SshKeyManagementPage extends ConsumerStatefulWidget {
 class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
   @override
   Widget build(BuildContext context) {
-    final sshKeys = ref.watch(sshKeysProvider);
+    final sshKeysAsync = ref.watch(sshKeysProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('SSH Key Management'), elevation: 0),
       body: Column(
         children: [
-          // Action buttons
+          // Action buttons bar
           Container(
             padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
             decoration: BoxDecoration(
@@ -33,11 +35,7 @@ class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
             child: Row(
               children: [
                 ElevatedButton.icon(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Generate key not implemented yet'),
-                    ),
-                  ),
+                  onPressed: () => _showImportKeyDialog(context),
                   icon: const Icon(Icons.vpn_key),
                   label: const Text('Generate Key'),
                   style: ElevatedButton.styleFrom(
@@ -55,19 +53,62 @@ class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
                     foregroundColor: Colors.white,
                   ),
                 ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () {
+                    ref.read(sshKeysProvider.notifier).loadKeys();
+                  },
+                  tooltip: 'Refresh',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.clear_all),
+                  onPressed: () => _showClearAllConfirmation(context),
+                  tooltip: 'Clear All Keys',
+                  color: Colors.red,
+                ),
               ],
             ),
           ),
-          // SSH Keys list
+          // SSH Keys list with loading/error handling
           Expanded(
-            child: sshKeys.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: EdgeInsets.all(2.w),
-                    itemCount: sshKeys.length,
-                    itemBuilder: (context, index) =>
-                        _buildKeyCard(context, sshKeys[index]),
-                  ),
+            child: sshKeysAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 15.w,
+                      color: Colors.red.shade300,
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      'Error loading keys',
+                      style: TextStyle(fontSize: 14.sp, color: Colors.red),
+                    ),
+                    SizedBox(height: 1.h),
+                    Text(
+                      error.toString(),
+                      style: TextStyle(fontSize: 10.sp, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+              data: (sshKeys) {
+                if (sshKeys.isEmpty) {
+                  return _buildEmptyState();
+                }
+                return ListView.builder(
+                  padding: EdgeInsets.all(2.w),
+                  itemCount: sshKeys.length,
+                  itemBuilder: (context, index) =>
+                      _buildKeyCard(context, sshKeys[index]),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -172,6 +213,7 @@ class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
           case 'rename':
             _showRenameDialog(context, key);
             break;
+        
           case 'delete':
             _showDeleteConfirmation(context, key);
             break;
@@ -188,6 +230,7 @@ class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
         ),
         const PopupMenuDivider(),
         const PopupMenuItem(value: 'rename', child: Text('Rename')),
+        const PopupMenuItem(value: 'duplicate', child: Text('Duplicate')),
         const PopupMenuItem(value: 'delete', child: Text('Delete')),
       ],
     );
@@ -213,9 +256,8 @@ class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
 
   void _copyToClipboard(BuildContext context, String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label copied to clipboard')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('$label copied to clipboard')));
   }
 
   void _showImportKeyDialog(BuildContext context) {
@@ -247,13 +289,12 @@ class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
           ElevatedButton(
             onPressed: () {
               if (controller.text.isNotEmpty) {
-                ref
-                    .read(sshKeysProvider.notifier)
-                    .updateKey(key.id, key.copyWith(name: controller.text));
+                ref.read(sshKeysProvider.notifier).updateKey(
+                      key.copyWith(name: controller.text),
+                    );
                 Navigator.pop(context);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Key renamed')));
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(const SnackBar(content: Text('Key renamed')));
               }
             },
             child: const Text('Rename'),
@@ -262,6 +303,7 @@ class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
       ),
     );
   }
+
 
   void _showDeleteConfirmation(BuildContext context, SshKey key) {
     showDialog(
@@ -279,9 +321,8 @@ class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
             onPressed: () {
               ref.read(sshKeysProvider.notifier).removeKey(key.id);
               Navigator.pop(context);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Key deleted')));
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(const SnackBar(content: Text('Key deleted')));
             },
             child: const Text('Delete'),
           ),
@@ -290,7 +331,34 @@ class _SshKeyManagementPageState extends ConsumerState<SshKeyManagementPage> {
     );
   }
 
-  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
+  void _showClearAllConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear All SSH Keys'),
+        content: const Text('This will delete all SSH keys. Continue?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              ref.read(sshKeysProvider.notifier).clearAllKeys();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(const SnackBar(content: Text('All keys cleared')));
+            },
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.day}/${date.month}/${date.year}';
 }
 
 class _ImportKeyDialog extends ConsumerStatefulWidget {
@@ -304,6 +372,7 @@ class _ImportKeyDialogState extends ConsumerState<_ImportKeyDialog> {
   late TextEditingController _nameController;
   late TextEditingController _publicKeyController;
   late TextEditingController _privateKeyController;
+  bool _isImport = true; // Track if user wants to import or generate
 
   @override
   void initState() {
@@ -331,8 +400,35 @@ class _ImportKeyDialogState extends ConsumerState<_ImportKeyDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Import SSH Key',
-                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+                'SSH Key Management',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 1.5.h),
+              // Radio buttons to choose Import or Generate
+              Row(
+                children: [
+                  Expanded(
+                    child: RadioListTile<bool>(
+                      title: const Text('Import Existing Key'),
+                      value: true,
+                      groupValue: _isImport,
+                      onChanged: (value) =>
+                          setState(() => _isImport = value!),
+                    ),
+                  ),
+                  Expanded(
+                    child: RadioListTile<bool>(
+                      title: const Text('Generate New Key'),
+                      value: false,
+                      groupValue: _isImport,
+                      onChanged: (value) =>
+                          setState(() => _isImport = value!),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 1.5.h),
               TextField(
@@ -343,24 +439,27 @@ class _ImportKeyDialogState extends ConsumerState<_ImportKeyDialog> {
                 ),
                 autofocus: true,
               ),
-              SizedBox(height: 1.h),
-              TextField(
-                controller: _publicKeyController,
-                decoration: const InputDecoration(
-                  labelText: 'Public Key (ssh-rsa, ssh-ed25519...)',
-                  border: OutlineInputBorder(),
+              if (_isImport) ...[
+                // Show fields only for import
+                SizedBox(height: 1.h),
+                TextField(
+                  controller: _publicKeyController,
+                  decoration: const InputDecoration(
+                    labelText: 'Public Key (ssh-rsa, ssh-ed25519...)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 4,
                 ),
-                maxLines: 4,
-              ),
-              SizedBox(height: 1.h),
-              TextField(
-                controller: _privateKeyController,
-                decoration: const InputDecoration(
-                  labelText: 'Private Key',
-                  border: OutlineInputBorder(),
+                SizedBox(height: 1.h),
+                TextField(
+                  controller: _privateKeyController,
+                  decoration: const InputDecoration(
+                    labelText: 'Private Key',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 6,
                 ),
-                maxLines: 6,
-              ),
+              ],
               SizedBox(height: 2.h),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -371,8 +470,8 @@ class _ImportKeyDialogState extends ConsumerState<_ImportKeyDialog> {
                   ),
                   SizedBox(width: 1.w),
                   ElevatedButton(
-                    onPressed: () => _importKey(),
-                    child: const Text('Import'),
+                    onPressed: _isImport ? _importKey : _genkey,
+                    child: Text(_isImport ? 'Import' : 'Generate'),
                   ),
                 ],
               ),
@@ -389,23 +488,20 @@ class _ImportKeyDialogState extends ConsumerState<_ImportKeyDialog> {
     final privateKey = _privateKeyController.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Enter key name')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter key name')));
       return;
     }
 
     if (!SshKeyService.validatePublicKey(publicKey)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Invalid public key')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Invalid public key')));
       return;
     }
 
     if (!SshKeyService.validatePrivateKey(privateKey)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Invalid private key')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Invalid private key')));
       return;
     }
 
@@ -417,8 +513,26 @@ class _ImportKeyDialogState extends ConsumerState<_ImportKeyDialog> {
 
     ref.read(sshKeysProvider.notifier).addKey(sshKey);
     Navigator.pop(context);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Key imported')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Key imported')));
+  }
+
+  void _genkey() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter key name')));
+      return;
+    }
+    final keys = await SshKeyService().generateSSHKeys();
+    final sshKey = SshKeyService.createKeyFromImport(
+      name: name,
+      publicKey: keys["public"]!,
+      privateKey: keys["private"]!,
+    );
+    ref.read(sshKeysProvider.notifier).addKey(sshKey);
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Key generated')));
   }
 }

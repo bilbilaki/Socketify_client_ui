@@ -21,6 +21,7 @@ class ServerConfig {
   final bool? isOnline;
   final String? osVersion;
   final String? connectionType;
+  final ServerConfig? jumpServer;
 
   ServerConfig({
     required this.id,
@@ -40,6 +41,7 @@ class ServerConfig {
     this.isOnline,
     this.osVersion,
     required this.connectionType,
+    this.jumpServer
   });
 
   factory ServerConfig.fromJson(Map<String, dynamic> json) =>
@@ -65,6 +67,7 @@ class ServerConfig {
     bool? isOnline,
     String? osVersion,
     String? connectionType,
+    ServerConfig? jumpServer
   }) {
     return ServerConfig(
       id: id ?? this.id,
@@ -84,14 +87,9 @@ class ServerConfig {
       isOnline: isOnline ?? this.isOnline,
       osVersion: osVersion ?? this.osVersion,
       connectionType: connectionType ?? this.connectionType,
+      jumpServer: jumpServer?? this.jumpServer
     );
   }
 }
-enum ConnectionType {
-  ssh,
-  telnet,
-  rdp,
-  ws,
-  sftp,
-  smb
-}
+
+enum ConnectionType { ssh, telnet, rdp, ws, sftp, smb }

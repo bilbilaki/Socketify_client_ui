@@ -1,189 +1,193 @@
-import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
-import 'dart:math';
-import 'dart:typed_data';
-import 'package:client_ui/models/ssh_keys.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:pointycastle/export.dart' hide Mac;
-import 'package:cryptography/cryptography.dart';
-import 'package:uuid/uuid.dart';
+import 'dart:ffi' as ffi;
+import 'dart:isolate';
+import 'dart:convert';
+import 'package:ffi/ffi.dart';
+import '../bindings/generated_bindings_for_sshkeygen.dart';
 
-class SshKeyService {
-  static final AesCbc aesCbc = AesCbc.with256bits(macAlgorithm: MacAlgorithm.empty);  // Simple AES for encryption
-  static final pbkdf2 = Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: 10000, bits: 256);  // For key derivation
+/// Service for loading and interacting with the SSHKeygen native library
+class SSHKeygenService {
+  late final SSHKeygenLibrary _bindings;
+  late final ffi.DynamicLibrary _dylib;
+  ReceivePort? _receivePort;
+  int _nativePort = 0;
+  final Map<String, Function(Map<String, dynamic>)> _responseHandlers = {};
 
-  // Directory for storing keys
-  static Future<String> _getKeysDirectory() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final keysDir = Directory('${dir.path}/ssh_keys');
-    if (!await keysDir.exists()) await keysDir.create();
-    return keysDir.path;
+  /// Singleton instance
+  static SSHKeygenService? _instance;
+
+  factory SSHKeygenService() {
+    _instance ??= SSHKeygenService._internal();
+    return _instance!;
   }
 
-  // Generate an RSA key pair (supports with/without passphrase)
-  static Future<SshKey> createRSAKey({
-    String? name,
-    String? passphrase,
-    List<String?> usedbyServers = const [],
-  }) async {
-    final rsaParameters = RSAKeyGeneratorParameters(BigInt.from(2048),2048,2048);
-    final keyGenerator = RSAKeyGenerator();
-    final secureRandom = FortunaRandom();
-    final keyParams = ParametersWithRandom(rsaParameters, secureRandom);
-    keyGenerator.init(keyParams);
+  SSHKeygenService._internal();
 
-    final keyPair = keyGenerator.generateKeyPair();
-    final privateKey = keyPair.privateKey as RSAPrivateKey;
-    final publicKey = keyPair.publicKey as RSAPublicKey;
+  /// Initialize the library and setup communication bridge
+  Future<void> initialize() async {
+    _dylib = _loadLibrary();
+    _bindings = SSHKeygenLibrary(_dylib);
 
-    final privatePem = (privateKey);
-    final publicPem = (publicKey);
+    // Setup receive port for callbacks from Go
+    _receivePort = ReceivePort();
+    _nativePort = _receivePort!.sendPort.nativePort;
 
-    String? finalPrivatePem = privatePem.toString();
-    bool isEncrypted = false;
-    if (passphrase != null && passphrase.isNotEmpty) {
-      finalPrivatePem = await _encryptPem(privatePem.toString(), passphrase);
-      isEncrypted = true;
+    // Initialize the Dart API in Go
+    final dartApiDL = ffi.NativeApi.initializeApiDLData;
+    _bindings.BridgeInit(dartApiDL);
+
+    // Register the port
+    _bindings.RegisterPort(_nativePort);
+
+    // Listen for messages from Go
+    _receivePort!.listen(_handleNativeMessage);
+
+    print('SSHKeygenService initialized successfully');
+  }
+
+  /// Load the appropriate dynamic library based on platform
+  ffi.DynamicLibrary _loadLibrary() {
+    if (Platform.isAndroid){
+          try {
+        return ffi.DynamicLibrary.open("libssl.so");
+ } catch (e) {
+        return ffi.DynamicLibrary.open("libssl.so");
+      }
     }
-
-    return SshKey(
-      id: Uuid().v4(),
-      name: name,
-      usedbyServers: usedbyServers,
-      type: 'RSA',
-      publicKey: publicPem.toString(),
-      privateKey: finalPrivatePem,
-      passphrase: passphrase,
-      isEncrypted: isEncrypted,
-    );
-  }
-
-  // Generate an Ed25519 key pair (supports with/without passphrase)
-  static Future<SshKey> createEd25519Key({
-    String? name,
-    String? passphrase,
-    List<String?> usedbyServers = const [],
-  }) async {
-    final algorithm = Ed25519();
-    final keyPair = await algorithm.newKeyPair();
-
-    final privateBytes = await keyPair.extractPrivateKeyBytes();
-    final publicBytes = await keyPair.extractPublicKey();
-
-    final privatePem = _encodeEd25519PrivateToPEM(privateBytes);
-    final publicPem = _encodeEd25519PublicToPEM(publicBytes.bytes);
-
-    String? finalPrivatePem = privatePem;
-    bool isEncrypted = false;
-    if (passphrase != null && passphrase.isNotEmpty) {
-      finalPrivatePem = await _encryptPem(privatePem, passphrase);
-      isEncrypted = true;
+   else if (Platform.isWindows) {
+      // Try multiple paths for Windows
+      try {
+        return ffi.DynamicLibrary.open('native/windows/sshKeyGen.dll');
+      } catch (e) {
+        return ffi.DynamicLibrary.open('sshkeygen.dll');
+      }
+    } else if (Platform.isLinux) {
+      try {
+        return ffi.DynamicLibrary.open('native/linux/sshkeygen.so');
+      } catch (e) {
+        return ffi.DynamicLibrary.open('./sshkeygen.so');
+      }
+    } else if (Platform.isMacOS) {
+      try {
+        return ffi.DynamicLibrary.open('native/macos/sshkeygen.dylib');
+      } catch (e) {
+        return ffi.DynamicLibrary.open('./sshkeygen.dylib');
+      }
     }
-
-    return SshKey(
-      id: Uuid().v4(),
-      name: name,
-      usedbyServers: usedbyServers,
-      type: 'Ed25519',
-      publicKey: publicPem,
-      privateKey: finalPrivatePem,
-      passphrase: passphrase,
-      isEncrypted: isEncrypted,
-    );
+    throw UnsupportedError('Unsupported platform: ${Platform.operatingSystem}');
   }
 
-  // Decrypt private key if encrypted
-  static Future<String?> decryptPrivateKey(SshKey key) async {
-    if (!key.isEncrypted || key.privateKey == null || key.passphrase == null) {
-      return key.privateKey;  // Not encrypted or no passphrase
+ /// Handle messages from native library
+  void _handleNativeMessage(dynamic message) {
+    if (message is String) {
+      try {
+        final data = jsonDecode(message);
+        final op = data['op'] as String?;
+
+        if (op != null && _responseHandlers.containsKey(op)) {
+          _responseHandlers[op]!(data);
+          _responseHandlers.remove(op);
+        } else {
+          print('Received: $message');
+        }
+      } catch (e) {
+        // Not JSON, just a simple message
+        print('SSHKeygen Native: $message');
+      }
     }
-    return await _decryptPem(key.privateKey!, key.passphrase!);
   }
 
-  // Encrypt a PEM string with AES-256 using passphrase
-  static Future<String> _encryptPem(String pem, String passphrase) async {
-    final salt = Uint8List(16)..setRange(0, 16, [Random.secure().nextInt(16)]);
-    final derivedKey = await pbkdf2.deriveKeyFromPassword(
-      password: passphrase,
-      nonce: salt,
+  /// Dispose resources
+  void dispose() {
+    _bindings.UnregisterPort();
+    _receivePort?.close();
+    _receivePort = null;
+  }
+
+  // ==================== SSH KEYGEN OPERATIONS ====================
+
+  /// Generate an SSH key
+  ///
+  /// [keytype] - Type of key (e.g., "rsa", "ed25519")
+  /// [keyfile] - Path to save the key file
+  /// [comment] - Comment for the key
+  /// [size] - Key size (applicable for RSA)
+  /// [password] - Password for encrypting the key (optional, can be empty)
+  ///
+  /// Returns a map containing the generated key information (private_key_file, public_key_file, key_type, comment)
+  Future<Map<String, dynamic>> generateKey({
+    required String keytype,
+    required String keyfile,
+    required String comment,
+    required int size,
+    String password = '',
+  }) {
+    final completer = Completer<Map<String, dynamic>>();
+    _responseHandlers['generate_key'] = (data) {
+      if (data['success'] == true) {
+        completer.complete(Map<String, dynamic>.from(data['data']));
+      } else {
+        completer.completeError(data['error'] ?? 'Unknown error');
+      }
+    };
+
+    final keytypePtr = keytype.toNativeUtf8().cast<ffi.Char>();
+    final keyfilePtr = keyfile.toNativeUtf8().cast<ffi.Char>();
+    final commentPtr = comment.toNativeUtf8().cast<ffi.Char>();
+    final passwordPtr = password.toNativeUtf8().cast<ffi.Char>();
+
+    _bindings.GenerateKey(
+      keytypePtr,
+      keyfilePtr,
+      commentPtr,
+      size,
+      passwordPtr,
+      _nativePort,
     );
-    final secretKey = await derivedKey.extract();
 
-    final plaintext = Uint8List.fromList(utf8.encode(pem));
-    final secretBox = await aesCbc.encrypt(plaintext, secretKey: secretKey);
+    malloc.free(keytypePtr);
+    malloc.free(keyfilePtr);
+    malloc.free(commentPtr);
+    malloc.free(passwordPtr);
 
-    final encrypted = salt + secretBox.nonce + secretBox.cipherText + secretBox.mac!.bytes;
-    return base64.encode(encrypted);
+    return completer.future;
   }
 
-  // Decrypt an encrypted PEM string
-  static Future<String> _decryptPem(String encryptedPem, String passphrase) async {
-    final encrypted = base64.decode(encryptedPem);
-    final salt = encrypted.sublist(0, 16);
-    final nonce = encrypted.sublist(16, 16 + aesCbc.nonceLength);
-    final ciphertext = encrypted.sublist(16 + aesCbc.nonceLength, encrypted.length - aesCbc.macAlgorithm.macLength);
+  /// Get the fingerprint of an SSH key
+  ///
+  /// [keyfile] - Path to the key file
+  /// [keytype] - Type of key (e.g., "rsa", "ed25519")
+  ///
+  /// Returns a map containing fingerprint information (size, fingerprint, comment, key_type)
+  Future<Map<String, dynamic>> getFingerprint({
+    required String keyfile,
+    required String keytype,
+  }) {
+    final completer = Completer<Map<String, dynamic>>();
+    _responseHandlers['get_fingerprint'] = (data) {
+      if (data['success'] == true) {
+        completer.complete(Map<String, dynamic>.from(data['data']));
+      } else {
+        completer.completeError(data['error'] ?? 'Unknown error');
+      }
+    };
 
-    final derivedKey = await pbkdf2.deriveKeyFromPassword(
-      password: passphrase,
-      nonce: salt,
-    );
-    final secretKey = await derivedKey.extract();
+    final keyfilePtr = keyfile.toNativeUtf8().cast<ffi.Char>();
+    final keytypePtr = keytype.toNativeUtf8().cast<ffi.Char>();
 
-    final secretBox = SecretBox(ciphertext, nonce: nonce, mac: Mac(encrypted.sublist(encrypted.length - aesCbc.macAlgorithm.macLength)));
-    final decrypted = await aesCbc.decrypt(secretBox, secretKey: secretKey);
-    return utf8.decode(decrypted);
+    _bindings.GetFingerprint(keyfilePtr, keytypePtr, _nativePort);
+
+    malloc.free(keyfilePtr);
+    malloc.free(keytypePtr);
+
+    return completer.future;
   }
 
-  // Export key to JSON and PEM files
-  static Future<void> exportKey(SshKey key, {String? customPath}) async {
-    final dir = customPath ?? await _getKeysDirectory();
-    final basePath = '$dir/${key.id}';
-
-    final jsonFile = File('$basePath.json');
-    await jsonFile.writeAsString(jsonEncode(key.toJson()));
-
-    if (key.publicKey != null) await File('$basePath.pub').writeAsString(key.publicKey!);
-    if (key.privateKey != null) await File('$basePath').writeAsString(key.privateKey!);  // Encrypted or plain
-  }
-
-  // Import key from JSON file
-  static Future<SshKey> importKey(String keyId, {String? customPath}) async {
-    final dir = customPath ?? await _getKeysDirectory();
-    final jsonFile = File('$dir/$keyId.json');
-
-    if (!await jsonFile.exists()) throw Exception('Key not found');
-
-    final jsonString = await jsonFile.readAsString();
-    return SshKey.fromJson(jsonDecode(jsonString));
-  }
-
-  // // Helper: Encode RSA private key to PEM
-  // static String _encodePrivateKeyToPEM(RSAPrivateKey key) {
-  //   final asn1 = key.encodeToASN1();
-  //   return '-----BEGIN RSA PRIVATE KEY-----\n' +
-  //       base64.encode(asn1.encode()!) +
-  //       '\n-----END RSA PRIVATE KEY-----\n';
-  // }
-
-  // // Helper: Encode public key to PEM
-  // static String _encodePublicKeyToPEM(RSAPublicKey key) {
-  //   final asn1 = key.exponent();
-  //   return '-----BEGIN PUBLIC KEY-----\n' +
-  //       base64.encode(asn1.encode()!) +
-  //       '\n-----END PUBLIC KEY-----\n';
-  // }
-
-  // Helper: Encode Ed25519 private to PEM
-  static String _encodeEd25519PrivateToPEM(List<int> bytes) {
-    return '-----BEGIN OPENSSH PRIVATE KEY-----\n' +
-        base64.encode(bytes) +
-        '\n-----END OPENSSH PRIVATE KEY-----\n';
-  }
-
-  // Helper: Encode Ed25519 public to PEM
-  static String _encodeEd25519PublicToPEM(List<int> bytes) {
-    return '-----BEGIN PUBLIC KEY-----\n' +
-        base64.encode(bytes) +
-        '\n-----END PUBLIC KEY-----\n';
+  /// Stop a running task by its task ID
+  ///
+  /// [taskID] - Task ID
+  void stopTask(int taskID) {
+    _bindings.StopTask(taskID, _nativePort);
   }
 }

@@ -24,6 +24,9 @@ ServerConfig _$ServerConfigFromJson(Map<String, dynamic> json) => ServerConfig(
   isOnline: json['isOnline'] as bool?,
   osVersion: json['osVersion'] as String?,
   connectionType: json['connectionType'] as String?,
+  jumpServer: json['jumpServer'] == null
+      ? null
+      : ServerConfig.fromJson(json['jumpServer'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$ServerConfigToJson(ServerConfig instance) =>
@@ -45,4 +48,5 @@ Map<String, dynamic> _$ServerConfigToJson(ServerConfig instance) =>
       'isOnline': instance.isOnline,
       'osVersion': instance.osVersion,
       'connectionType': instance.connectionType,
+      'jumpServer': instance.jumpServer,
     };

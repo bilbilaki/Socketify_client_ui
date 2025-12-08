@@ -207,6 +207,7 @@ class TerminalScreen extends ConsumerWidget {
                               session.port,
                               session.username,
                               session.password,
+                              session.privKey
                             );
     try {
       await term.connect();
@@ -239,7 +240,6 @@ class TerminalScreen extends ConsumerWidget {
       MaterialPageRoute(builder: (context) => TerminalScreen()),
     );
                             print('Duplicating session at index: $index');
-                            // TODO: Implement duplicate session
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
