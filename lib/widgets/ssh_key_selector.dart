@@ -82,7 +82,11 @@ class SshKeySelector extends ConsumerWidget {
     );
   }
 
-  Widget _buildSelector(BuildContext context, WidgetRef ref, List<SshKey> sshKeys) {
+  Widget _buildSelector(
+    BuildContext context,
+    WidgetRef ref,
+    List<SshKey> sshKeys,
+  ) {
     final selectedKey = selectedKeyId != null
         ? sshKeys.cast<SshKey?>().firstWhere(
             (k) => k?.id == selectedKeyId,
@@ -121,7 +125,7 @@ class SshKeySelector extends ConsumerWidget {
                       ),
                       if (selectedKey != null)
                         Text(
-                          '${selectedKey.keyType.toUpperCase()} • ${_formatDate(selectedKey.createdAt)}',
+                          '${selectedKey.keyType.toUpperCase()} • ID: ${selectedKey.id.substring(0, 8)}... • ${_formatDate(selectedKey.createdAt)}',
                           style: TextStyle(
                             fontSize: 9.sp,
                             color: Colors.grey.shade600,
@@ -229,7 +233,7 @@ class SshKeySelector extends ConsumerWidget {
                             ),
                             title: Text(key.name),
                             subtitle: Text(
-                              '${key.keyType.toUpperCase()} • ${_formatDate(key.createdAt)}',
+                              '${key.keyType.toUpperCase()} • ID: ${key.id.substring(0, 8)}... • ${_formatDate(key.createdAt)}',
                               style: TextStyle(fontSize: 10.sp),
                             ),
                             trailing: isSelected

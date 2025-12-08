@@ -207,7 +207,8 @@ class TerminalScreen extends ConsumerWidget {
                               session.port,
                               session.username,
                               session.password,
-                              session.privKey
+                              session.privKey,
+                              session.jumpServer
                             );
     try {
       await term.connect();

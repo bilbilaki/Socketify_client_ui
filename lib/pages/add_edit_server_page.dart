@@ -5,6 +5,7 @@ import 'package:sizer/sizer.dart';
 import 'package:uuid/uuid.dart';
 import '../models/server_config.dart';
 import '../providers/app_providers.dart';
+import '../widgets/ssh_key_selector.dart';
 
 class AddEditServerPage extends ConsumerStatefulWidget {
   final ServerConfig? server;
@@ -25,11 +26,12 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
   late TextEditingController _usernameController;
   late TextEditingController _gatewayProxyController;
   late TextEditingController _passwordController;
-  late TextEditingController _privKeyController;
   late TextEditingController _chainConnectionController;
 
   String _selectedOsType = 'Linux';
   String _selectedConnectionType = 'ssh';
+  String? _selectedJumpServerId;
+  String? _selectedSshKeyId;
   final List<String> _connectionTypeOptions = [
     'ssh',
     'telnet',
@@ -82,15 +84,13 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
     _passwordController = TextEditingController(
       text: widget.server?.password ?? '',
     );
-    _privKeyController = TextEditingController(
-      text: widget.server?.privKey ?? '',
-    );
     _chainConnectionController = TextEditingController(
       text: widget.server?.chainConnection ?? '',
     );
 
     if (widget.server != null) {
       _selectedOsType = widget.server!.osType;
+      _selectedJumpServerId = widget.server!.jumpServer?.id;
     }
   }
 
@@ -104,7 +104,6 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
     _usernameController.dispose();
     _gatewayProxyController.dispose();
     _passwordController.dispose();
-    _privKeyController.dispose();
     _chainConnectionController.dispose();
     super.dispose();
   }
@@ -112,6 +111,7 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.server != null;
+    final serverListAsync = ref.watch(serverListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -246,7 +246,10 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
                       ),
                     ),
                     items: _connectionTypeOptions.map((connection) {
-                      return DropdownMenuItem(value: connection, child: Text(connection));
+                      return DropdownMenuItem(
+                        value: connection,
+                        child: Text(connection),
+                      );
                     }).toList(),
                     onChanged: (value) {
                       setState(() {
@@ -296,12 +299,13 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
               ),
             ),
             SizedBox(height: 2.h),
-            _buildTextField(
-              controller: _privKeyController,
-              label: 'Private Key',
-              icon: Icons.vpn_key,
-              maxLines: 3,
-              hint: 'Enter private key or path to key file',
+            SshKeySelector(
+              selectedKeyId: _selectedSshKeyId,
+              onChanged: (value) {
+                setState(() {
+                  _selectedSshKeyId = value;
+                });
+              },
             ),
             SizedBox(height: 3.h),
             Text(
@@ -325,6 +329,33 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
               label: 'Chain Connection',
               icon: Icons.link,
               hint: 'Server ID for chain connection',
+            ),
+            SizedBox(height: 2.h),
+            DropdownButtonFormField<String?>(
+              value: _selectedJumpServerId,
+              decoration: InputDecoration(
+                labelText: 'Jump Server',
+                prefixIcon: const Icon(Icons.swap_calls),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('None')),
+                ...(serverListAsync.value ?? [])
+                    .where((server) => server.id != widget.server?.id)
+                    .map(
+                      (server) => DropdownMenuItem(
+                        value: server.id,
+                        child: Text(server.name),
+                      ),
+                    ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedJumpServerId = value;
+                });
+              },
             ),
             SizedBox(height: 4.h),
             Row(
@@ -415,9 +446,11 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
       password: _passwordController.text.trim().isEmpty
           ? null
           : _passwordController.text.trim(),
-      privKey: _privKeyController.text.trim().isEmpty
-          ? null
-          : _privKeyController.text.trim(),
+      privKey: _selectedSshKeyId != null
+          ? (ref.read(sshKeysProvider).value ?? [])
+                .firstWhere((k) => k.id == _selectedSshKeyId)
+                .privateKey
+          : null,
       chainConnection: _chainConnectionController.text.trim().isEmpty
           ? null
           : _chainConnectionController.text.trim(),
@@ -426,6 +459,11 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
       connectionType: "ssh",
       isOnline: widget.server?.isOnline,
       osVersion: widget.server?.osVersion,
+      jumpServer: _selectedJumpServerId != null
+          ? (ref.read(serverListProvider).value ?? []).firstWhere(
+              (s) => s.id == _selectedJumpServerId,
+            )
+          : null,
     );
 
     if (widget.server == null) {
