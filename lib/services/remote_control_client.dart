@@ -1,142 +1,283 @@
 import 'dart:async';
-import '../core/protocol/command_protocol.dart';
-import '../core/transport/transport_interface.dart';
+import 'package:flutter/foundation.dart';
 import '../core/transport/websocket_transport.dart';
-import '../core/transport/bluetooth_transport.dart';
+import '../core/transport/transport_interface.dart';
+import '../core/protocol/command_protocol.dart';
 
-/// Unified remote control client for mobile
-class RemoteClient {
-  TransportInterface?  _activeTransport;
-  final Map<String, TransportInterface> _transports = {};
-  
-  final _stateController = StreamController<TransportState>.broadcast();
-  Stream<TransportState> get stateStream => _stateController. stream;
-  
-  TransportState get state => _activeTransport?.state ?? TransportState.disconnected;
-  String?  get activeTransportName => _activeTransport?.name;
-  
-  RemoteClient() {
-    // Initialize available transports
-    _transports['websocket'] = WebSocketTransport();
-    _transports['bluetooth'] = BluetoothTransport();
+/// Remote control client with multi-transport support
+class RemoteControlClient {
+  static final RemoteControlClient _instance = RemoteControlClient._();
+
+  factory RemoteControlClient() {
+    return _instance;
   }
-  
-  Future<void> initialize() async {
-    for (final transport in _transports.values) {
-      if (transport.isAvailable) {
-        await transport.initialize();
+
+  RemoteControlClient._() {
+    _transport = WebSocketTransport();
+    _setupTransportListeners();
+  }
+
+  // Transport layer
+  late WebSocketTransport _transport;
+
+  // Shared state notifiers for widgets
+  final connected = ValueNotifier<bool>(false);
+  final isConnecting = ValueNotifier<bool>(false);
+  final errorMessage = ValueNotifier<String?>('');
+  final activeServer = ValueNotifier<String?>('');
+  final mouseX = ValueNotifier<double>(0);
+  final mouseY = ValueNotifier<double>(0);
+
+  TransportState _state = TransportState.disconnected;
+  TransportState get state => _state;
+
+  // Command history
+  final commandHistory = ValueNotifier<List<String>>([]);
+
+  void _setupTransportListeners() {
+    _transport.events.listen((event) {
+      if (event is TransportConnectedEvent) {
+        connected.value = true;
+        isConnecting.value = false;
+        _state = TransportState.connected;
+        errorMessage.value = '';
+      } else if (event is TransportDisconnectedEvent) {
+        connected.value = false;
+        isConnecting.value = false;
+        _state = TransportState.disconnected;
+      } else if (event is TransportErrorEvent) {
+        errorMessage.value = event.error;
+        _state = TransportState.error;
+        isConnecting.value = false;
       }
+    });
+  }
+
+  /// Connect to a server via specified protocol
+  Future<void> connect(String host, {int port = 8765}) async {
+    try {
+      isConnecting.value = true;
+      errorMessage.value = '';
+      _state = TransportState.connecting;
+
+      final target = 'ws://$host:$port';
+      await _transport.connect(target);
+
+      activeServer.value = '$host:$port';
+    } catch (e) {
+      _state = TransportState.error;
+      errorMessage.value = e.toString();
+      connected.value = false;
+    } finally {
+      isConnecting.value = false;
     }
   }
-  
-  /// Connect via WebSocket
-  Future<void> connectWebSocket(String host, {int port = 8765}) async {
-    final transport = _transports['websocket']!;
-    await transport.connect('$host:$port');
-    _activeTransport = transport;
-    _stateController.add(transport.state);
-  }
-  
-  /// Connect via Bluetooth
-  Future<void> connectBluetooth(dynamic device) async {
-    final transport = _transports['bluetooth']!;
-    await transport.connect('', config: {'device': device});
-    _activeTransport = transport;
-    _stateController.add(transport.state);
-  }
-  
-  /// Disconnect current connection
+
+  /// Disconnect from server
   Future<void> disconnect() async {
-    await _activeTransport?. disconnect();
-    _activeTransport = null;
-    _stateController.add(TransportState.disconnected);
+    try {
+      isConnecting.value = true;
+      await _transport.disconnect();
+      connected.value = false;
+      activeServer.value = '';
+      _state = TransportState.disconnected;
+      errorMessage.value = '';
+    } catch (e) {
+      errorMessage.value = e.toString();
+    } finally {
+      isConnecting.value = false;
+    }
   }
-  
-  /// Send command and wait for response
-  Future<CommandResponse> send(RemoteCommand command) async {
-    if (_activeTransport == null) {
+
+  // ==================== Mouse Commands ====================
+
+  /// Move mouse relative to current position
+  Future<void> mouseMoveRelative(int deltaX, int deltaY) async {
+    if (!connected.value) return;
+    mouseX.value += deltaX;
+    mouseY.value += deltaY;
+    _recordCommand('Mouse Move: +$deltaX, +$deltaY');
+
+    final command = RemoteCommand.mouseMoveRelative(deltaX, deltaY);
+    try {
+      await _transport.sendCommand(command);
+    } catch (e) {
+      errorMessage.value = 'Failed to send mouse move: $e';
+    }
+  }
+
+  /// Click mouse button (1=left, 2=right, 3=middle)
+  Future<void> mouseClick({int button = 1}) async {
+    if (!connected.value) return;
+    final buttonName = ['left', 'right', 'middle'][button - 1];
+    _recordCommand(
+      '${buttonName[0].toUpperCase()}${buttonName.substring(1)} Click',
+    );
+
+    final command = RemoteCommand.mouseClick(button: buttonName);
+    try {
+      await _transport.sendCommand(command);
+    } catch (e) {
+      errorMessage.value = 'Failed to send mouse click: $e';
+    }
+  }
+
+  /// Double click
+  Future<void> mouseDoubleClick({int button = 1}) async {
+    if (!connected.value) return;
+    _recordCommand('Double Click');
+
+    final buttonName = ['left', 'right', 'middle'][button - 1];
+    final command = RemoteCommand.mouseDoubleClick(button: buttonName);
+    try {
+      await _transport.sendCommand(command);
+    } catch (e) {
+      errorMessage.value = 'Failed to send double click: $e';
+    }
+  }
+
+  /// Scroll wheel
+  Future<void> mouseScroll(int delta) async {
+    if (!connected.value) return;
+    _recordCommand('Scroll: ${delta > 0 ? 'Up' : 'Down'}');
+
+    final command = RemoteCommand.mouseScroll(0, delta);
+    try {
+      await _transport.sendCommand(command);
+    } catch (e) {
+      errorMessage.value = 'Failed to send scroll: $e';
+    }
+  }
+
+  // ==================== Keyboard Commands ====================
+
+  /// Type text string
+  Future<void> typeString(String text) async {
+    if (!connected.value) return;
+    _recordCommand('Type: "$text"');
+
+    final command = RemoteCommand.typeString(text);
+    try {
+      await _transport.sendCommand(command);
+    } catch (e) {
+      errorMessage.value = 'Failed to send text: $e';
+    }
+  }
+
+  /// Press single key
+  Future<void> keyPress(String key) async {
+    if (!connected.value) return;
+    _recordCommand('Key Press: $key');
+
+    final command = RemoteCommand.keyTap(key);
+    try {
+      await _transport.sendCommand(command);
+    } catch (e) {
+      errorMessage.value = 'Failed to send key press: $e';
+    }
+  }
+
+  /// Hotkey combination (e.g., Ctrl+C)
+  Future<void> hotkey(List<String> keys) async {
+    if (!connected.value) return;
+    _recordCommand('Hotkey: ${keys.join("+")}');
+
+    final command = RemoteCommand.hotkey(keys);
+    try {
+      await _transport.sendCommand(command);
+    } catch (e) {
+      errorMessage.value = 'Failed to send hotkey: $e';
+    }
+  }
+
+  // ==================== Special Keys ====================
+
+  Future<void> pressEscape() => keyPress('escape');
+  Future<void> pressEnter() => keyPress('return');
+  Future<void> pressTab() => keyPress('tab');
+  Future<void> pressBackspace() => keyPress('backspace');
+  Future<void> pressDelete() => keyPress('delete');
+  Future<void> pressSpace() => keyPress('space');
+
+  Future<void> pressArrowUp() => keyPress('up');
+  Future<void> pressArrowDown() => keyPress('down');
+  Future<void> pressArrowLeft() => keyPress('left');
+  Future<void> pressArrowRight() => keyPress('right');
+
+  Future<void> pressCopy() => hotkey(['cmd', 'c']);
+  Future<void> pressPaste() => hotkey(['cmd', 'v']);
+  Future<void> pressCut() => hotkey(['cmd', 'x']);
+  Future<void> pressUndo() => hotkey(['cmd', 'z']);
+  Future<void> pressSelectAll() => hotkey(['cmd', 'a']);
+  Future<void> pressSave() => hotkey(['cmd', 's']);
+
+  // ==================== Screen Capture ====================
+
+  /// Capture full screen and get base64 encoded image
+  Future<CommandResponse> captureFullScreen() async {
+    if (!connected.value) {
       throw StateError('Not connected');
     }
-    return _activeTransport!. sendCommand(command);
+
+    final command = RemoteCommand(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      category: CommandCategory.screen,
+      operation: ScreenOp.captureBase64.code,
+      params: {
+        'x': 0,
+        'y': 0,
+        'w': 1980, // 0 means full width
+        'h': 1280, // 0 means full height
+      },
+    );
+
+    _recordCommand('Capture Screen');
+    return await _transport.sendCommand(command);
   }
-  
-  // ==================== Convenience Methods ====================
-  
-  /// Move mouse to absolute position
-  Future<Map<String, int>> mouseMove(int x, int y) async {
-    final response = await send(RemoteCommand. mouseMove(x, y));
-    return Map<String, int>.from(response.data);
-  }
-  
-  /// Move mouse relative to current position
-  Future<Map<String, int>> mouseMoveRelative(int dx, int dy) async {
-    final response = await send(RemoteCommand.mouseMoveRelative(dx, dy));
-    return Map<String, int>.from(response.data);
-  }
-  
-  /// Click mouse button
-  Future<void> mouseClick({String button = 'left'}) async {
-    await send(RemoteCommand.mouseClick(button: button));
-  }
-  
-  /// Double click
-  Future<void> mouseDoubleClick({String button = 'left'}) async {
-    await send(RemoteCommand.mouseDoubleClick(button: button));
-  }
-  
-  /// Scroll mouse
-  Future<void> mouseScroll(int x, int y) async {
-    await send(RemoteCommand.mouseScroll(x, y));
-  }
-  
-  /// Get mouse location
-  Future<Map<String, int>> getMouseLocation() async {
-    final response = await send(RemoteCommand.getMouseLocation());
-    return Map<String, int>.from(response.data);
-  }
-  
-  /// Type a string
-  Future<void> typeString(String text) async {
-    await send(RemoteCommand.typeString(text));
-  }
-  
-  /// Press a key with optional modifiers
-  Future<void> keyTap(String key, {List<String>? modifiers}) async {
-    await send(RemoteCommand.keyTap(key, modifiers: modifiers));
-  }
-  
-  /// Execute hotkey combination
-  Future<void> hotkey(List<String> keys) async {
-    await send(RemoteCommand.hotkey(keys));
-  }
-  
-  /// Get screen size
-  Future<Map<String, int>> getScreenSize() async {
-    final response = await send(RemoteCommand.getScreenSize());
-    return Map<String, int>.from(response. data);
-  }
-  
-  /// Capture screen region as base64
-  Future<String> captureScreen(int x, int y, int w, int h) async {
-    final response = await send(RemoteCommand.captureScreen(x, y, w, h));
-    return response.data as String;
-  }
-  
-  /// Read clipboard
-  Future<String> readClipboard() async {
-    final response = await send(RemoteCommand.readClipboard());
-    return response.data as String;
-  }
-  
-  /// Write to clipboard
-  Future<void> writeClipboard(String text) async {
-    await send(RemoteCommand.writeClipboard(text));
-  }
-  
-  void dispose() {
-    for (final transport in _transports.values) {
-      transport. dispose();
+
+  /// Capture specific screen region and get base64 encoded image
+  Future<CommandResponse> captureRegion(
+    int x,
+    int y,
+    int width,
+    int height,
+  ) async {
+    if (!connected.value) {
+      throw StateError('Not connected');
     }
-    _stateController.close();
+
+    final command = RemoteCommand(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      category: CommandCategory.screen,
+      operation: ScreenOp.captureRegion.code,
+      params: {'x': x, 'y': y, 'w': width, 'h': height, 'path': './img.png'},
+    );
+
+    _recordCommand('Capture Region: x=$x, y=$y, w=$width, h=$height');
+    return await _transport.sendCommand(command);
+  }
+
+  /// Clear command history
+  void clearHistory() {
+    commandHistory.value = [];
+  }
+
+  void _recordCommand(String command) {
+    final history = [...commandHistory.value, command];
+    if (history.length > 50) {
+      history.removeAt(0);
+    }
+    commandHistory.value = history;
+  }
+
+  void dispose() {
+    _transport.dispose();
+    connected.dispose();
+    isConnecting.dispose();
+    errorMessage.dispose();
+    activeServer.dispose();
+    mouseX.dispose();
+    mouseY.dispose();
+    commandHistory.dispose();
   }
 }

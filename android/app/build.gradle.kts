@@ -24,10 +24,13 @@ android {
         applicationId = "com.example.client_ui"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
+        minSdk = 26
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    ndk {
+        abiFilters += listOf("arm64-v8a")
+    }
     }
 
     buildTypes {

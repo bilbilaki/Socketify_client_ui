@@ -1,9 +1,10 @@
+import 'package:client_ui/pages/ssh_key_management_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 import '../providers/app_providers.dart';
 import 'hosts_servers_page.dart';
-import 'ssh_key_management_page.dart';
+import 'remote_control_page.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -62,11 +63,12 @@ class HomePage extends ConsumerWidget {
               index: 0,
               selectedIndex: selectedIndex,
             ),
+             
             _buildDrawerItem(
               context: context,
               ref: ref,
               icon: Icons.vpn_key,
-              title: 'KeyStore',
+              title: 'Key Store',
               index: 1,
               selectedIndex: selectedIndex,
             ),
@@ -134,6 +136,14 @@ class HomePage extends ConsumerWidget {
               index: 9,
               selectedIndex: selectedIndex,
             ),
+                       _buildDrawerItem(
+              context: context,
+              ref: ref,
+              icon: Icons.settings_remote_rounded,
+              title: 'remote Servers',
+              index: 10,
+              selectedIndex: selectedIndex,
+            ),
           ],
         ),
       ),
@@ -177,7 +187,7 @@ class HomePage extends ConsumerWidget {
       case 0:
         return const HostsServersPage();
       case 1:
-        return SshKeyManagementPage();
+        return const SshKeyManagementPage();
       case 2:
         return _buildPlaceholderPage('SFTP', Icons.folder);
       case 3:
@@ -194,6 +204,8 @@ class HomePage extends ConsumerWidget {
         return _buildPlaceholderPage('Runcmd', Icons.terminal);
       case 9:
         return _buildPlaceholderPage('Snip and Code Gallery', Icons.code);
+              case 10:
+        return RemoteControlPage();
       default:
         return const HostsServersPage();
     }

@@ -32,22 +32,10 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
   String _selectedConnectionType = 'ssh';
   String? _selectedJumpServerId;
   String? _selectedSshKeyId;
-  final List<String> _connectionTypeOptions = [
+
+  final List<String> _connectionTypes = [
     'ssh',
-    'telnet',
-    'rdp',
-    'ws',
-    'sftp',
-    'smb',
-  ];
-  final Map<String, ConnectionType> _connectionTypes = {
-    'ssh': ConnectionType.ssh,
-    'telnet': ConnectionType.telnet,
-    'rdp': ConnectionType.rdp,
-    'ws': ConnectionType.ws,
-    'sftp': ConnectionType.sftp,
-    'smb': ConnectionType.smb,
-  };
+    'telnet',   'rdp' ,'ws',  'sftp', 'smb' ];
   bool _obscurePassword = true;
 
   final List<String> _osTypes = [
@@ -245,7 +233,7 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    items: _connectionTypeOptions.map((connection) {
+                    items: _connectionTypes.map((connection) {
                       return DropdownMenuItem(
                         value: connection,
                         child: Text(connection),
@@ -323,13 +311,13 @@ class _AddEditServerPageState extends ConsumerState<AddEditServerPage> {
               icon: Icons.router,
               hint: 'e.g., proxy.example.com:8080',
             ),
-            SizedBox(height: 2.h),
-            _buildTextField(
-              controller: _chainConnectionController,
-              label: 'Chain Connection',
-              icon: Icons.link,
-              hint: 'Server ID for chain connection',
-            ),
+            // SizedBox(height: 2.h),
+            // _buildTextField(
+            //   controller: _chainConnectionController,
+            //   label: 'Chain Connection',
+            //   icon: Icons.link,
+            //   hint: 'Server ID for chain connection',
+            // ),
             SizedBox(height: 2.h),
             DropdownButtonFormField<String?>(
               value: _selectedJumpServerId,

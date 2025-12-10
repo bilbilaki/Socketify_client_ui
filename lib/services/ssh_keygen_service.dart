@@ -50,9 +50,9 @@ class SSHKeygenService {
   ffi.DynamicLibrary _loadLibrary() {
     if (Platform.isAndroid){
           try {
-        return ffi.DynamicLibrary.open("libssl.so");
+        return ffi.DynamicLibrary.open("sshKeyGen.so");
  } catch (e) {
-        return ffi.DynamicLibrary.open("libssl.so");
+        return ffi.DynamicLibrary.open("sshKeyGen.so");
       }
     }
    else if (Platform.isWindows) {
